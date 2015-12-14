@@ -43,4 +43,13 @@
     border-radius: 3px;
     background-color: whitesmoke;
     border: 1px solid black;
+    box-shadow: 3px 3px 5px #888888;
+}
+.wd-button {
+    width: 32px;
+    height: 32px;
+    /*    border: 1px black solid;*/
+    border-radius: 2px;
+    padding: 0px;
+    margin: 2px;
 }
