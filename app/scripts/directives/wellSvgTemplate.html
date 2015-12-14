@@ -1,0 +1,20 @@
+<div id='drawingContainer'>
+    <div id="controlsContainer">
+        <div><img type="button" class="wd-button" ng-src="/app/content/buttons/add_casing_50x50.png" uib-tooltip="Add Casing" width="30" ng-click="add()"></img>
+            <img type="button" class="wd-button" ng-src="/app/content/buttons/add_tubing_50x50.png" uib-tooltip="Add Tubing" width="30" ng-click="addTubing()"></img>
+
+        </div>
+    </div>
+
+    <div ng-show="selState" id="contextControlsContainer">
+        <div ng-show="selState===selType.casingString">
+            <div>Selected Element Options:</div>
+            <img type="button" class="wd-button" ng-src="/app/content/buttons/Remove.png" uib-tooltip="Delete this String" tooltip-placement="bottom" width="30" ng-click="delete()"></img>
+            <img type="button" class="wd-button" ng-src="/app/content/buttons/add_packer_50x50.png" uib-tooltip="Add Packer to String" tooltip-placement="bottom" width="30" ng-click="addPacker()"></img>'
+        </div>
+        <div ng-show="selState===selType.packer">
+            <div>Selected Element Options:</div>
+            <img type="button" class="wd-button" ng-src="/app/content/buttons/Remove.png" width="30" ng-click="delete()"></img>
+        </div>
+    </div>
+</div>
