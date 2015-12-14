@@ -1,6 +1,6 @@
 app.controller('MainController', ['$scope', 'WellPaper', function ($scope, WellPaper) {
     'use strict';
-    $scope.greeting = 'WellDraw';
+
 
 }]);
 
@@ -51,7 +51,6 @@ app.directive('wellSvg', ['$compile', 'WellPaper', function ($compile, WellPaper
 
             WellPaper.selectionMade.then(null, null, function (obj) {
                 scope.selState = obj.selectionType;
-                console.log(obj.x + " and " + obj.y);
                 if (obj.x && obj.y) {
                     contextControls.css({
                         left: String(obj.x - 20) + 'px',
@@ -69,7 +68,7 @@ app.directive('wellSvg', ['$compile', 'WellPaper', function ($compile, WellPaper
 }]);
 
 
-app.factory('WellPaper', ['$q', 'WDConst', function ($q, WDConst) {
+app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csLib) {
     'use strict';
     var well;
     var paper;
@@ -118,7 +117,7 @@ app.factory('WellPaper', ['$q', 'WDConst', function ($q, WDConst) {
 
     /* GLOBAL EVENT HANDLERS ********************************************************************************************************/
     var handleNewString = function (evt) {
-        makeString(evt.offsetX, evt.offsetY);
+        well.makeCasingString(evt.offsetX, evt.offsetY);
     };
     var handleClick = function (evt) {
         if (well.drag.happened) {
@@ -151,14 +150,10 @@ app.factory('WellPaper', ['$q', 'WDConst', function ($q, WDConst) {
             if (string.triangles.bottom < y) y = string.triangles.bottom;
             if (x1 > x) x = x1;
         });
-        makeString(x + WDConst.cementWidth + 6, Math.max(y - well.height * 0.15, well.groundLevel + 100));
+        well.makeCasingString(x + appConst.cementWidth + 6, Math.max(y - well.height * 0.15, well.groundLevel + 100));
     };
     this.addTubing = function () {
-        var x = well.midPoint + 15;
-        var y = well.height * 0.75;
-
-        var newTubing = new TubingString(x, y);
-        //well.strings.push(newCasing);
+        well.addTubingString();
     };
     this.deleteCurrent = function () {
         well.selectedItem.delete();
@@ -190,22 +185,15 @@ app.factory('WellPaper', ['$q', 'WDConst', function ($q, WDConst) {
         return (x > well.midPoint) ? 1 : -1;
     }
 
+
+
     /**
-     * @function makeString
-     * @description make a casing set with casing, cement, and triangle
-     * @param   {Number} x coordinate
-     * @param   {Number} y coordinate
-     * @returns {Number} well.strings[] index of the new casing
+     * @function registerSelectClickable
+     * @description add the element to the array of clickable items so it can be compared when a click happens
+     * @param {Object} element the Node.js element object to add    
+     * @param {Object} string  The CasingString or TubingString the item belongs to
+     * @param {Function} handler function to use as a click event handler for when the element is clicked
      */
-    var makeString = function (x, y) {
-
-        //        var cur = well.strings.length - 1;
-        var newCasing = new CasingString(x, y);
-        well.strings.push(newCasing);
-
-        return newCasing;
-    };
-
     var registerSelectClickable = function (element, string, handler) {
         clickable.push({
             e: element,
@@ -267,6 +255,23 @@ app.factory('WellPaper', ['$q', 'WDConst', function ($q, WDConst) {
         this.groundLine = new GroundLevel(this, center, this.groundLevel);
     };
     Well.prototype = {
+        /**
+         * @function makeCasingString
+         * @description make a casing set with casing, cement, and triangle
+         * @param   {Number} x coordinate
+         * @param   {Number} y coordinate
+         * @returns {Number} well.strings[] index of the new casing
+         */
+        makeCasingString: function (x, y) {
+            var newCasing = new CasingString(this, x, y);
+            this.strings.push(newCasing);
+            return newCasing;
+        },
+        addTubingString: function (x, y) {
+            x = csLib.useThisOrAlternate(x, this.midPoint + 15);
+            y = csLib.useThisOrAlternate(y, this.height * 0.75);
+            var newTubing = new TubingString(this, x, y);
+        },
         checkOHLowest: function (casing) {
             var saveE = casing;
             var bottom = casing.bottom;
@@ -314,9 +319,9 @@ app.factory('WellPaper', ['$q', 'WDConst', function ($q, WDConst) {
      * @param {Number} x inside bottom corner of the string
      * @param {Number} y bottom of the string
      */
-    var CasingString = function (x, y) {
+    var CasingString = function (well, x, y) {
         this.packers = [];
-
+        this.well = well;
         //Clear any previous selectino
         hideHandles();
 
@@ -326,8 +331,8 @@ app.factory('WellPaper', ['$q', 'WDConst', function ($q, WDConst) {
         this.casing = new Casing(this, x, y);
 
 
-        well.checkOHLowest(this.casing);
-        well.checkWidestString(this.casing);
+        this.well.checkOHLowest(this.casing);
+        this.well.checkWidestString(this.casing);
 
 
         //Show the handles on the new string
@@ -336,7 +341,7 @@ app.factory('WellPaper', ['$q', 'WDConst', function ($q, WDConst) {
     CasingString.prototype = {
         select: function () { //copy of selectString
             this.showHandles();
-            well.selectedItem = this;
+            this.well.selectedItem = this;
             console.log("selecting casing");
             notifySelection(selectionTypes.casingString, this.casing.x1, this.casing.bottom);
         },
@@ -372,24 +377,23 @@ app.factory('WellPaper', ['$q', 'WDConst', function ($q, WDConst) {
             this.casing.move(x, y);
             this.triangles.move(x, y);
             this.cement.move(x, y);
-            well.checkOHLowest(this.casing);
-            well.checkWidestString(this.casing);
+            this.well.checkOHLowest(this.casing);
+            this.well.checkWidestString(this.casing);
             updateContextMenuPos(x, y);
         },
         delete: function () {
             var string = this;
-            well.checkWidestString(string.casing);
+            this.well.checkWidestString(string.casing);
             string.remove();
             hideHandles();
-            well.strings.forEach(function (element, index, array) {
+            this.well.strings.forEach(function (element, index, array) {
                 if (element === string) delete array[index];
             });
             this.packers.forEach(function (element, index, array) {
                 element.delete();
             });
             string = null;
-            well.checkWidestString(null);
-            console.log(well.strings);
+            this.well.checkWidestString(null);
         }
     };
 
@@ -401,9 +405,9 @@ app.factory('WellPaper', ['$q', 'WDConst', function ($q, WDConst) {
      * @param {Number} x inside bottom corner of the string
      * @param {Number} y bottom of the string
      */
-    var TubingString = function (x, y) {
+    var TubingString = function (well, x, y) {
         this.packers = [];
-
+        this.well = well;
         //Clear any previous selectino
         hideHandles();
 
@@ -416,7 +420,7 @@ app.factory('WellPaper', ['$q', 'WDConst', function ($q, WDConst) {
     TubingString.prototype = {
         select: function () { //copy of selectString
             this.showHandles();
-            well.selectedItem = this;
+            this.well.selectedItem = this;
             notifySelection(selectionTypes.casingString, this.casing.x1, this.casing.bottom);
         },
         /**
@@ -449,14 +453,13 @@ app.factory('WellPaper', ['$q', 'WDConst', function ($q, WDConst) {
             var string = this;
             string.remove();
             hideHandles();
-            well.strings.forEach(function (element, index, array) {
+            this.well.strings.forEach(function (element, index, array) {
                 if (element === string) delete array[index];
             });
             this.packers.forEach(function (element, index, array) {
                 element.delete();
             });
             string = null;
-            console.log(well.strings);
         }
     };
 
@@ -757,10 +760,8 @@ app.factory('WellPaper', ['$q', 'WDConst', function ($q, WDConst) {
             };
         },
         move: function (x, y) {
-            if (x < 0 || x === undefined || x === null) x = this.x1;
-            if (y < 0 || y === undefined || y === null) y = this.bottom;
-            this.x1 = x;
-            this.bottom = y;
+            if (csLib.isExistPositive(x)) this.x1 = x;
+            if (csLib.isExistPositive(y)) this.bottom = y;
             this.x2 = mirrorPoint(this.x1);
             this.e1.attr({
                 points: this.triPoints(this.x1, this.bottom)
@@ -794,7 +795,7 @@ app.factory('WellPaper', ['$q', 'WDConst', function ($q, WDConst) {
         this.bottom = y || 100;
         this.x1 = x || well.midPoint + 50;
         this.x2 = mirrorPoint(this.x1);
-        this.height = WDConst.cementHeight;
+        this.height = appConst.cementHeight;
         this.top = this.bottom - this.height;
         this.parent = parent;
         var sign = getSign(this.x1);
@@ -803,10 +804,10 @@ app.factory('WellPaper', ['$q', 'WDConst', function ($q, WDConst) {
 
         this.e1 = paper.polygon(this.cementPoints(this.x1)).attr(this.cemFormat("#aaaaaa"));
         this.e2 = paper.polygon(this.cementPoints(this.x2)).attr(this.cemFormat("#aaaaaa"));
-        this.e1.handle = new Handle(this.x1 + (WDConst.cementWidth * sign), this.bottom - (this.height / 2), angular.bind(this, this.dragCement));
-        this.e2.handle = new Handle(this.x2 - (WDConst.cementWidth * sign), this.bottom - (this.height / 2), angular.bind(this, this.dragCement));
-        this.e1.topHandle = new Handle(this.x1 + (WDConst.cementWidth * sign), this.bottom - this.height, angular.bind(this, this.dragCementTop));
-        this.e2.topHandle = new Handle(this.x2 - (WDConst.cementWidth * sign), this.bottom - this.height, angular.bind(this, this.dragCementTop));
+        this.e1.handle = new Handle(this.x1 + (appConst.cementWidth * sign), this.bottom - (this.height / 2), angular.bind(this, this.dragCement));
+        this.e2.handle = new Handle(this.x2 - (appConst.cementWidth * sign), this.bottom - (this.height / 2), angular.bind(this, this.dragCement));
+        this.e1.topHandle = new Handle(this.x1 + (appConst.cementWidth * sign), this.bottom - this.height, angular.bind(this, this.dragCementTop));
+        this.e2.topHandle = new Handle(this.x2 - (appConst.cementWidth * sign), this.bottom - this.height, angular.bind(this, this.dragCementTop));
 
         registerSelectClickable(this.e1, this.parent, angular.bind(this.parent, this.parent.select));
         registerSelectClickable(this.e2, this.parent, angular.bind(this.parent, this.parent.select));
@@ -841,7 +842,7 @@ app.factory('WellPaper', ['$q', 'WDConst', function ($q, WDConst) {
             var y = this.bottom;
             var h = this.height;
             var sign = (x > well.midPoint) ? 1 : -1;
-            var d = WDConst.cementWidth;
+            var d = appConst.cementWidth;
             x = x + (sign * 2);
             return [x, y, x, y - h, x + (d * sign), y - h, x + (d * sign), y];
         },
@@ -853,9 +854,9 @@ app.factory('WellPaper', ['$q', 'WDConst', function ($q, WDConst) {
             this.move(null, this.height / 2 + evt.offsetY, null);
         },
         move: function (x, y, h) {
-            if (x >= 0 && x !== undefined && x !== null) this.x1 = x;
-            if (y >= 0 && y !== undefined && y !== null) this.bottom = y;
-            if (h >= 0 && h !== undefined && h !== null) this.height = h;
+            if (csLib.isExistPositive(x)) this.x1 = x;
+            if (csLib.isExistPositive(y)) this.bottom = y;
+            if (csLib.isExistPositive(h)) this.height = h;
             this.x2 = mirrorPoint(this.x1);
             var sign = getSign(this.x1);
             this.top = this.bottom - this.height;
@@ -988,15 +989,25 @@ app.factory('WellPaper', ['$q', 'WDConst', function ($q, WDConst) {
     return this;
 }]);
 
-app.value('WDConst', {
-    cementHeight: 100,
-    cementWidth: 15,
-});
+
 
 app.value('csLib', {
     isExist: function (x) {
         return (x !== undefined && x !== null);
+    },
+    isExistPositive: function (x) {
+        return (x >= 0 && x !== undefined && x !== null);
+    },
+    useThisOrAlternate: function (x, alternate) {
+        if (x !== undefined && x !== null) {
+            return x;
+        } else {
+            return alternate;
+        }
     }
 });
 
 //http://stackoverflow.com/questions/9308938/inline-text-editing-in-svg
+
+//@todo: get rid of clickable array
+//@todo
