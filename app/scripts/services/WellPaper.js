@@ -2,7 +2,6 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
     'use strict';
     var well;
     var paper;
-    var clickable = [];
     var handles = [];
     var selectionDefer = $q.defer();
     this.selectionMade = selectionDefer.promise;
@@ -61,11 +60,10 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         }
 
         //Find the registered clickable elements
-        clickable.forEach(function (elem) {
-            if (evt.srcElement === elem.e.node) {
-                elem.handler(elem.string);
-            }
-        });
+        if (evt.srcElement.hasOwnProperty("clickInfo")) {
+            evt.srcElement.clickInfo.handler();
+        }
+
     };
     var handleMouseMove = function (evt) {
 
@@ -119,17 +117,14 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
 
     /**
      * @function registerSelectClickable
-     * @description add the element to the array of clickable items so it can be compared when a click happens
-     * @param {Object} element the Node.js element object to add    
-     * @param {Object} string  The CasingString or TubingString the item belongs to
+     * @description add clickInfo to the element node so it can be accessed when a click happens
+     * @param {Object} element the Node.js element object to add
      * @param {Function} handler function to use as a click event handler for when the element is clicked
      */
-    var registerSelectClickable = function (element, string, handler) {
-        clickable.push({
-            e: element,
-            string: string,
+    var registerSelectClickable = function (element, handler) {
+        element.node.clickInfo = {
             handler: handler
-        });
+        };
     };
 
     var notifySelection = function (selType, x, y) {
@@ -422,7 +417,7 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         this.e1.handle = new Handle(well.midPoint, this.bottom, angular.bind(this, this.dragOHBottom));
 
         this.hide();
-        registerSelectClickable(this.e1, 0, angular.bind(this, this.selectOH));
+        registerSelectClickable(this.e1, angular.bind(this, this.selectOH));
     };
     OpenHole.prototype = {
         selectOH: function (i) {
@@ -498,8 +493,8 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         this.e1 = paper.polygon(this.points(this.x1));
         this.e2 = paper.polygon(this.points(this.x2));
 
-        registerSelectClickable(this.e1, null, angular.bind(this, this.select));
-        registerSelectClickable(this.e2, null, angular.bind(this, this.select));
+        registerSelectClickable(this.e1, angular.bind(this, this.select));
+        registerSelectClickable(this.e2, angular.bind(this, this.select));
         this.e2.handle = new Handle(this.handleX(this.x2), this.handleY(), angular.bind(this, this.drag));
         this.e1.handle = new Handle(this.handleX(this.x1), this.handleY(), angular.bind(this, this.drag));
         hideHandles();
@@ -564,8 +559,6 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         remove: function () {
             var i;
             [this.e1, this.e2].forEach(function (element, index) {
-                i = clickable.indexOf(element);
-                if (i >= 0) clickable.splice(i, 1);
                 element.remove();
             });
             [this.e1.handle, this.e2.handle].forEach(function (element) {
@@ -600,8 +593,8 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         this.e1.handle = new Handle(this.x1, this.bottom, angular.bind(this.parent, this.parent.dragMove));
         this.e2.handle = new Handle(this.x2, this.bottom, angular.bind(this.parent, this.parent.dragMove));
 
-        registerSelectClickable(this.e1, this.parent, angular.bind(this.parent, this.parent.select));
-        registerSelectClickable(this.e2, this.parent, angular.bind(this.parent, this.parent.select));
+        registerSelectClickable(this.e1, angular.bind(this.parent, this.parent.select));
+        registerSelectClickable(this.e2, angular.bind(this.parent, this.parent.select));
     };
     Casing.prototype = {
         /**
@@ -645,8 +638,6 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
             var i;
             [this.e1, this.e2]
             .forEach(function (element, index) {
-                i = clickable.indexOf(element);
-                if (i >= 0) clickable.splice(i, 1);
                 element.remove();
             });
             [this.e1.topHandle, this.e2.topHandle, this.e1.handle, this.e2.handle].forEach(function (element) {
@@ -673,8 +664,8 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         this.e1 = paper.polygon(this.triPoints(this.x1, this.bottom)).attr(this.triFormat());
         this.e2 = paper.polygon(this.triPoints(this.x2, this.bottom)).attr(this.triFormat());
 
-        registerSelectClickable(this.e1, this.parent, angular.bind(this.parent, this.parent.select));
-        registerSelectClickable(this.e2, this.parent, angular.bind(this.parent, this.parent.select));
+        registerSelectClickable(this.e1, angular.bind(this.parent, this.parent.select));
+        registerSelectClickable(this.e2, angular.bind(this.parent, this.parent.select));
 
         return this;
     };
@@ -704,8 +695,6 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
             var i;
             [this.e1, this.e2]
             .forEach(function (element, index) {
-                i = clickable.indexOf(element);
-                if (i >= 0) clickable.splice(i, 1);
                 element.remove();
             });
 
@@ -739,8 +728,8 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         this.e1.topHandle = new Handle(this.x1 + (appConst.cementWidth * sign), this.bottom - this.height, angular.bind(this, this.dragCementTop));
         this.e2.topHandle = new Handle(this.x2 - (appConst.cementWidth * sign), this.bottom - this.height, angular.bind(this, this.dragCementTop));
 
-        registerSelectClickable(this.e1, this.parent, angular.bind(this.parent, this.parent.select));
-        registerSelectClickable(this.e2, this.parent, angular.bind(this.parent, this.parent.select));
+        registerSelectClickable(this.e1, angular.bind(this.parent, this.parent.select));
+        registerSelectClickable(this.e2, angular.bind(this.parent, this.parent.select));
     };
     Cements.prototype = {
         enforceBounds: function () {
@@ -810,8 +799,6 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
             var i;
             [this.e1, this.e2]
             .forEach(function (element, index) {
-                i = clickable.indexOf(element);
-                if (i >= 0) clickable.splice(i, 1);
                 element.remove();
             });
             [this.e1.topHandle, this.e2.topHandle, this.e1.handle, this.e2.handle].forEach(function (element) {
@@ -875,8 +862,8 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
 
         this.e1.handle = new Handle(this.handleXPos(), this.y, angular.bind(this, this.dragGroundLevel));
 
-        registerSelectClickable(this.e1, null, angular.bind(this, this.select));
-        registerSelectClickable(this.e2, null, angular.bind(this, this.select));
+        registerSelectClickable(this.e1, angular.bind(this, this.select));
+        registerSelectClickable(this.e2, angular.bind(this, this.select));
     };
     GroundLevel.prototype = {
         style: function () {
