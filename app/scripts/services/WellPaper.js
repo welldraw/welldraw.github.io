@@ -56,7 +56,7 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
 
         if (well.selectedItem) {
             //console.log("going to hide handles");
-            hideHandles();
+            deselectCurrent();
         }
 
         //Find the registered clickable elements
@@ -152,10 +152,10 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
     };
 
     /**
-     * @function hideHandles
+     * @function deselectCurrent
      * @description removes but not delete the handles from the paper
      */
-    var hideHandles = function () {
+    var deselectCurrent = function () {
         handles.forEach(function (element, index) {
             element.remove();
         });
@@ -163,6 +163,29 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         well.selectedItem = null;
         notifySelection(selectionTypes.none);
     };
+
+    /**
+     * @function hideHandlesDuringDrag
+     * @description temporarily removes handles that aren't actively being dragged so the user can see what's going on with the drag.
+     */
+    var hideHandlesDuringDrag = function (beingDragged) {
+        handles.forEach(function (element, index) {
+            //if (element.node !== beingDragged) 
+            element.remove();
+        });
+    };
+
+    /**
+     * @function restoreHandlesAfterDrag
+     * @description restores handles after the drag.
+     */
+    var restoreHandlesAfterDrag = function () {
+        handles.forEach(function (element, index) {
+            paper.append(element);
+        });
+    };
+
+
 
     /* CLASSES ****************************************************************************************************************/
     /**
@@ -248,7 +271,7 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         this.packers = [];
         this.well = well;
         //Clear any previous selectino
-        hideHandles();
+        deselectCurrent();
 
         //Make the elements in order of layering
         this.cement = new Cements(this, x, y);
@@ -310,7 +333,7 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
             var string = this;
             this.well.checkWidestString(string.casing);
             string.remove();
-            hideHandles();
+            deselectCurrent();
             this.well.strings.forEach(function (element, index, array) {
                 if (element === string) delete array[index];
             });
@@ -334,7 +357,7 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         this.packers = [];
         this.well = well;
         //Clear any previous selectino
-        hideHandles();
+        deselectCurrent();
 
         //Make the elements in order of layering
         this.casing = new Casing(this, x, y);
@@ -377,7 +400,7 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         delete: function () {
             var string = this;
             string.remove();
-            hideHandles();
+            deselectCurrent();
             this.well.strings.forEach(function (element, index, array) {
                 if (element === string) delete array[index];
             });
@@ -497,7 +520,7 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         registerSelectClickable(this.e2, angular.bind(this, this.select));
         this.e2.handle = new Handle(this.handleX(this.x2), this.handleY(), angular.bind(this, this.drag));
         this.e1.handle = new Handle(this.handleX(this.x1), this.handleY(), angular.bind(this, this.drag));
-        hideHandles();
+        deselectCurrent();
         this.select();
     };
     Packer.prototype = {
@@ -567,7 +590,7 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
             this.parent.removePacker(this);
         },
         delete: function () {
-            hideHandles();
+            deselectCurrent();
             this.remove();
         }
     };
@@ -828,9 +851,11 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
                 y: evt.offsetY
             };
             hideSelection();
+            hideHandlesDuringDrag(evt.srcElement);
         },
         universalDragEndHandler: function () {
             restoreSelection();
+            restoreHandlesAfterDrag();
         },
         reAdd: function () {
             paper.append(this.e);
