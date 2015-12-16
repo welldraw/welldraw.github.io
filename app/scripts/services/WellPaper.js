@@ -55,7 +55,6 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         }
 
         if (well.selectedItem) {
-            //console.log("going to hide handles");
             deselectCurrent();
         }
 
@@ -444,6 +443,7 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
     };
     OpenHole.prototype = {
         selectOH: function (i) {
+            well.selectedItem = this;
             this.e1.handle.reAdd();
         },
         dragOHBottom: function (dx, dy, x, y, evt) {
@@ -923,6 +923,7 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
             this.move(null, evt.offsetY);
         },
         select: function (i) {
+            well.selectedItem = this;
             this.e1.handle.reAdd();
         }
     };
