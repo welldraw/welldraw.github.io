@@ -530,6 +530,16 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
             this.move(evt.offsetX, evt.offsetY);
         },
         move: function (x, y) {
+            this.updateX(x);
+            this.updateY(y);
+
+            this.enforceBounds();
+            this.updatePositions();
+        },
+        updateY: function (y) {
+            if (y >= 0 && y !== undefined && y !== null) this.bottom = y + this.height / 2;
+        },
+        updateX: function (x) {
             var sign = getSign(this.myCasing.x1);
             if (x >= 0 && x !== undefined && x !== null) {
                 if (this.e1.handle.e.node === well.drag.element) {
@@ -538,9 +548,9 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
                     this.width = (sign * x) - (this.myCasing.x2 * sign);
                 }
             }
-            if (y >= 0 && y !== undefined && y !== null) this.bottom = y + this.height / 2;
-
-            this.enforceBounds();
+        },
+        updatePositions: function () {
+            var sign = getSign(this.myCasing.x1);
             this.x1 = this.myCasing.x1 - (sign * this.width);
             this.x2 = mirrorPoint(this.x1);
             this.e1.attr({
@@ -580,12 +590,18 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
     };
 
     var Hanger = function (parentCasing, width) {
+        this.height = 6;
         Packer.call(this, parentCasing, parentCasing.top + 6, 6, -6);
     };
     Hanger.prototype = angular.copy(Packer.prototype);
     Hanger.prototype.enforceBounds = function () {
         if (this.width > -4) this.width = -4;
         this.bottom = this.myCasing.top + 6;
+    };
+    Hanger.prototype.updateY = function (y) {
+        if (y >= 0 && y !== undefined && y !== null) {
+            this.myCasing.move(null, null, y - (this.height / 2));
+        }
     };
 
     /**
@@ -939,4 +955,4 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
 
 
     return this;
-}]);
+            }]);
