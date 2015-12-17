@@ -65,7 +65,16 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
 
     };
     var handleMouseMove = function (evt) {
+        if (paper.hasOwnProperty("unhighlight") && paper.unhighlight) {
+            paper.unhighlight();
+            delete paper.unhighlight;
+        }
+        if (evt.srcElement.hasOwnProperty("clickInfo") && !well.drag.happened) {
+            evt.srcElement.clickInfo.highlight();
+            paper.unhighlight = evt.srcElement.clickInfo.unhighlight;
+        } else {
 
+        }
     };
 
     /* EXPOSED API CONTROL FUNCTIONS ********************************************************************************************************/
@@ -122,8 +131,21 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
      */
     var registerSelectClickable = function (element, handler) {
         element.node.clickInfo = {
-            handler: handler
+            handler: handler,
+            highlight: function () {
+                element.strokeColor = element.attr("stroke");
+                element.attr({
+                    stroke: '#FF0'
+                });
+                console.log(element.attr("stroke"));
+            },
+            unhighlight: function () {
+                element.attr({
+                    stroke: element.strokeColor
+                });
+            }
         };
+
     };
 
     var notifySelection = function (selType, x, y) {
@@ -196,6 +218,7 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         this.midPoint = center;
         this.groundLevel = 50;
         this.strings = [];
+        this.tubingStrings = [];
         this.drag = {};
         this.lowestCasing = this.groundLevel;
 
@@ -217,7 +240,7 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         addTubingString: function (x, y) {
             x = csLib.useThisOrAlternate(x, this.midPoint + 15);
             y = csLib.useThisOrAlternate(y, this.height * 0.75);
-            var newTubing = new TubingString(this, x, y);
+            this.tubingStrings(new TubingString(this, x, y));
         },
         checkOHLowest: function (casing) {
             var saveE = casing;
@@ -483,10 +506,10 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
     /**
      * @function Packer
      * @description packer component that gets added to casingString
-     * @param {object}   parent [[Description]]
-     * @param {[[Type]]} bottom [[Description]]
-     * @param {[[Type]]} height [[Description]]
-     * @param {[[Type]]} width  [[Description]]
+     * @param {object}   parent casing element the packer is bound to
+     * @param {Number} bottom bottom of packer (optional)
+     * @param {Number} height height (optional)
+     * @param {number} width  starting width (optional)
      */
     var Packer = function (parentCasing, bottom, height, width) {
         this.myCasing = parentCasing;
@@ -589,18 +612,23 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         }
     };
 
-    var Hanger = function (parentCasing, width) {
+    /**
+     * @function Hanger
+     * @description a hanger element fixed to the top of each casing object.  Inherits from Packer and is essentially a packer with negative width
+     * @param {object} parentCasing the casing its attached to
+     */
+    var Hanger = function (parentCasing) {
         this.height = 6;
-        Packer.call(this, parentCasing, parentCasing.top + 6, 6, -6);
+        Packer.call(this, parentCasing, parentCasing.top, 6, -6);
     };
     Hanger.prototype = angular.copy(Packer.prototype);
     Hanger.prototype.enforceBounds = function () {
         if (this.width > -4) this.width = -4;
-        this.bottom = this.myCasing.top + 6;
+        this.bottom = this.myCasing.top;
     };
     Hanger.prototype.updateY = function (y) {
         if (y >= 0 && y !== undefined && y !== null) {
-            this.myCasing.move(null, null, y - (this.height / 2));
+            this.myCasing.move(null, null, y + (this.height / 2));
         }
     };
 
@@ -623,7 +651,7 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         this.e1 = paper.line(this.x1, this.bottom, this.x1, this.top);
         this.e2 = paper.line(this.x2, this.bottom, this.x2, this.top);
 
-        this.hanger = new Hanger(this, -10);
+        this.hanger = new Hanger(this);
         this.packers.push(this.hanger);
 
         this.e1.topHandle = new Handle(this.x1, this.top, angular.bind(this, this.dragMoveTop));
@@ -955,4 +983,4 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
 
 
     return this;
-            }]);
+}]);
