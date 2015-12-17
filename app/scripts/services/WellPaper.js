@@ -87,7 +87,7 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         delete well.selectedItem;
     };
     this.addPacker = function () {
-        well.selectedItem.addPacker();
+        if (well.selectedItem.casing) well.selectedItem.casing.addPacker();
     };
 
 
@@ -267,7 +267,7 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
      * @param {Number} y bottom of the string
      */
     var CasingString = function (well, x, y) {
-        this.packers = [];
+
         this.well = well;
         //Clear any previous selectino
         deselectCurrent();
@@ -279,8 +279,7 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         this.triangles = new Triangles(this, x, y);
         this.casing = new Casing(this, x, y);
 
-        this.hanger = new Hanger(this, -10);
-        this.packers.push(this.hanger);
+
 
         this.well.checkOHLowest(this.casing);
         this.well.checkWidestString(this.casing);
@@ -315,13 +314,6 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
             this.triangles.remove();
             this.cement.remove();
         },
-        addPacker: function () {
-            this.packers.push(new Packer(this));
-        },
-        removePacker: function (packer) {
-            var i = this.packers.indexOf(packer);
-            if (i >= 0) this.packers.splice(i, 1);
-        },
         dragMove: function (dx, dy, x, y, evt) {
             x = evt.offsetX;
             y = evt.offsetY;
@@ -340,9 +332,6 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
             this.well.strings.forEach(function (element, index, array) {
                 if (element === string) delete array[index];
             });
-            this.packers.forEach(function (element, index, array) {
-                element.delete();
-            });
             string = null;
             this.well.checkWidestString(null);
         }
@@ -357,7 +346,7 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
      * @param {Number} y bottom of the string
      */
     var TubingString = function (well, x, y) {
-        this.packers = [];
+
         this.well = well;
         //Clear any previous selectino
         deselectCurrent();
@@ -387,13 +376,6 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         remove: function () {
             this.casing.remove();
         },
-        addPacker: function () {
-            this.packers.push(new Packer(this));
-        },
-        removePacker: function (packer) {
-            var i = this.packers.indexOf(packer);
-            if (i >= 0) this.packers.splice(i, 1);
-        },
         dragMove: function (dx, dy, x, y, evt) {
             x = evt.offsetX;
             y = evt.offsetY;
@@ -406,9 +388,6 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
             deselectCurrent();
             this.well.strings.forEach(function (element, index, array) {
                 if (element === string) delete array[index];
-            });
-            this.packers.forEach(function (element, index, array) {
-                element.delete();
             });
             string = null;
         }
@@ -509,12 +488,11 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
      * @param {[[Type]]} height [[Description]]
      * @param {[[Type]]} width  [[Description]]
      */
-    var Packer = function (parent, bottom, height, width) {
-        this.parent = parent;
-        this.bottom = bottom || this.parent.casing.bottom - 10;
+    var Packer = function (parentCasing, bottom, height, width) {
+        this.myCasing = parentCasing;
+        this.bottom = bottom || this.myCasing.bottom - 10;
         this.height = height || 10;
         this.width = width || 15;
-        this.myCasing = this.parent.casing;
         var sign = getSign(this.myCasing.x1);
         this.x1 = this.myCasing.x1 - (sign * this.width);
         this.x2 = mirrorPoint(this.x1);
@@ -593,7 +571,7 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
             [this.e1.handle, this.e2.handle].forEach(function (element) {
                 element.remove();
             });
-            this.parent.removePacker(this);
+            this.myCasing.removePacker(this);
         },
         delete: function () {
             deselectCurrent();
@@ -601,13 +579,13 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         }
     };
 
-    var Hanger = function (parent, width) {
-        Packer.call(this, parent, parent.casing.top + 6, 6, -6);
+    var Hanger = function (parentCasing, width) {
+        Packer.call(this, parentCasing, parentCasing.top + 6, 6, -6);
     };
     Hanger.prototype = angular.copy(Packer.prototype);
     Hanger.prototype.enforceBounds = function () {
         if (this.width > -4) this.width = -4;
-        this.bottom = this.parent.casing.top + 6;
+        this.bottom = this.myCasing.top + 6;
     };
 
     /**
@@ -618,6 +596,7 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
      * @param {Number} y coordinate for bottom of the casing
      */
     var Casing = function (parent, x, bottom) {
+        this.packers = [];
         this.bottom = bottom || 100;
         this.x1 = x || well.midPoint + 50;
         this.x2 = mirrorPoint(this.x1);
@@ -627,6 +606,10 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
 
         this.e1 = paper.line(this.x1, this.bottom, this.x1, this.top);
         this.e2 = paper.line(this.x2, this.bottom, this.x2, this.top);
+
+        this.hanger = new Hanger(this, -10);
+        this.packers.push(this.hanger);
+
         this.e1.topHandle = new Handle(this.x1, this.top, angular.bind(this, this.dragMoveTop));
         this.e2.topHandle = new Handle(this.x2, this.top, angular.bind(this, this.dragMoveTop));
         this.e1.handle = new Handle(this.x1, this.bottom, angular.bind(this.parent, this.parent.dragMove));
@@ -651,8 +634,7 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
 
 
 
-            this.parent.packers.forEach(function (element) {
-                console.log("moving packer");
+            this.packers.forEach(function (element) {
                 element.move();
             });
 
@@ -672,7 +654,13 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
             this.e2.topHandle.move(this.x2, this.top);
             this.e1.handle.move(this.x1, this.bottom);
             this.e2.handle.move(this.x2, this.bottom);
-            if (this.parent.hanger) this.parent.hanger.move();
+        },
+        addPacker: function () {
+            this.packers.push(new Packer(this));
+        },
+        removePacker: function (packer) {
+            var i = this.packers.indexOf(packer);
+            if (i >= 0) this.packers.splice(i, 1);
         },
         remove: function () {
             var i;
@@ -682,6 +670,9 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
             });
             [this.e1.topHandle, this.e2.topHandle, this.e1.handle, this.e2.handle].forEach(function (element) {
                 element.remove();
+            });
+            this.packers.forEach(function (element, index, array) {
+                element.delete();
             });
         },
         dragMoveTop: function (dx, dy, x, y, evt) {
