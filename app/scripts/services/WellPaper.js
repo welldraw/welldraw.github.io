@@ -272,11 +272,14 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         //Clear any previous selectino
         deselectCurrent();
 
+
+
         //Make the elements in order of layering
         this.cement = new Cements(this, x, y);
         this.triangles = new Triangles(this, x, y);
         this.casing = new Casing(this, x, y);
 
+        this.hanger = new Hanger(this, -10);
 
         this.well.checkOHLowest(this.casing);
         this.well.checkWidestString(this.casing);
@@ -494,6 +497,9 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         yValues: [3, 5, 7, 2, 6, 10, 4, 3, 8, 7, 2, 6, 9, 4, 4, 9, 7, 2, 6, 4, 8, 2, 4, 7, 6, 1, 2, 8, 9, 1, 4, 5, 7, 2, 1, 4, 5, 3, 8, 4, 1, 5, 2]
     };
 
+
+
+
     /**
      * @function Packer
      * @description packer component that gets added to casingString
@@ -566,7 +572,6 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
             });
             this.e1.handle.move(this.handleX(this.x1), this.handleY());
             this.e2.handle.move(this.handleX(this.x2), this.handleY());
-
             updateContextMenuPos(this.x1, this.bottom + this.height);
         },
         enforceBounds: function () {
@@ -595,6 +600,15 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         }
     };
 
+    var Hanger = function (parent, width) {
+        Packer.call(this, parent, parent.casing.top + 6, 6, -6);
+    };
+    Hanger.prototype = angular.copy(Packer.prototype);
+    Hanger.prototype.enforceBounds = function () {
+        if (this.width > -4) this.width = -4;
+        this.bottom = this.parent.casing.top + 6;
+    };
+
     /**
      * @class Casing
      * @description makes the vertical lines for the casing as a new object and provides functions for manipulating them   
@@ -606,8 +620,9 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         this.bottom = bottom || 100;
         this.x1 = x || well.midPoint + 50;
         this.x2 = mirrorPoint(this.x1);
-        this.top = well.groundLevel;
+        this.top = well.groundLevel - 10;
         this.parent = parent;
+
 
         this.e1 = paper.line(this.x1, this.bottom, this.x1, this.top);
         this.e2 = paper.line(this.x2, this.bottom, this.x2, this.top);
@@ -656,6 +671,7 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
             this.e2.topHandle.move(this.x2, this.top);
             this.e1.handle.move(this.x1, this.bottom);
             this.e2.handle.move(this.x2, this.bottom);
+            this.parent.hanger.move();
         },
         remove: function () {
             var i;
@@ -856,6 +872,7 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         universalDragEndHandler: function () {
             restoreSelection();
             restoreHandlesAfterDrag();
+            well.drag.happened = false;
         },
         reAdd: function () {
             paper.append(this.e);
