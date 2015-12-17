@@ -280,6 +280,7 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         this.casing = new Casing(this, x, y);
 
         this.hanger = new Hanger(this, -10);
+        this.packers.push(this.hanger);
 
         this.well.checkOHLowest(this.casing);
         this.well.checkWidestString(this.casing);
@@ -671,7 +672,7 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
             this.e2.topHandle.move(this.x2, this.top);
             this.e1.handle.move(this.x1, this.bottom);
             this.e2.handle.move(this.x2, this.bottom);
-            this.parent.hanger.move();
+            if (this.parent.hanger) this.parent.hanger.move();
         },
         remove: function () {
             var i;
