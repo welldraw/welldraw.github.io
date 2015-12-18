@@ -60,7 +60,11 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
 
         //Find the registered clickable elements
         if (evt.srcElement.hasOwnProperty("clickInfo")) {
-            evt.srcElement.clickInfo.handler();
+            if (evt.srcElement.clickInfo.hasOwnProperty('baseElementSet')) {
+                evt.srcElement.clickInfo.baseElementSet.select();
+            } else {
+                evt.srcElement.clickInfo.handler();
+            }
         }
 
     };
@@ -72,6 +76,13 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         if (evt.srcElement.hasOwnProperty("clickInfo") && !well.drag.happened) {
             evt.srcElement.clickInfo.highlight();
             paper.unhighlight = evt.srcElement.clickInfo.unhighlight;
+            if (evt.srcElement.clickInfo.hasOwnProperty('baseElementSet')) {
+                evt.srcElement.clickInfo.baseElementSet.highlight();
+                paper.unhighlight = angular.bind(evt.srcElement.clickInfo.baseElementSet, evt.srcElement.clickInfo.baseElementSet.unhighlight);
+            } else {
+                evt.srcElement.clickInfo.highlight();
+                paper.unhighlight = evt.srcElement.clickInfo.unhighlight;
+            }
         } else {
 
         }
@@ -129,17 +140,17 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
      * @param {Object} element the Node.js element object to add
      * @param {Function} handler function to use as a click event handler for when the element is clicked
      */
-    var registerSelectClickable = function (element, handler) {
+    var registerSelectClickable = function (element, handler, highlight, unhighlight) {
         element.node.clickInfo = {
             handler: handler,
-            highlight: function () {
+            highlight: highlight || function () {
                 element.strokeColor = element.attr("stroke");
                 element.attr({
-                    stroke: '#FF0'
+                    stroke: appConst.highlightHex
                 });
                 console.log(element.attr("stroke"));
             },
-            unhighlight: function () {
+            unhighlight: unhighlight || function () {
                 element.attr({
                     stroke: element.strokeColor
                 });
@@ -323,14 +334,14 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
          * @description show the handles associated with a string
          */
         showHandles: function () {
-            this.casing.e1.topHandle.reAdd();
-            this.casing.e2.topHandle.reAdd();
-            this.casing.e1.handle.reAdd();
-            this.casing.e2.handle.reAdd();
-            this.cement.e1.handle.reAdd();
-            this.cement.e2.handle.reAdd();
-            this.cement.e1.topHandle.reAdd();
-            this.cement.e2.topHandle.reAdd();
+            this.casing.elements[0].topHandle.reAdd();
+            this.casing.elements[1].topHandle.reAdd();
+            this.casing.elements[0].handle.reAdd();
+            this.casing.elements[1].handle.reAdd();
+            this.cement.elements[0].handle.reAdd();
+            this.cement.elements[1].handle.reAdd();
+            this.cement.elements[0].topHandle.reAdd();
+            this.cement.elements[1].topHandle.reAdd();
         },
         remove: function () {
             this.casing.remove();
@@ -346,6 +357,18 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
             this.well.checkOHLowest(this.casing);
             this.well.checkWidestString(this.casing);
             updateContextMenuPos(x, y);
+        },
+        highlight: function () {
+            this.strokeColor = element.attr("stroke");
+            element.attr({
+                stroke: appConst.highlightHex
+            });
+            console.log(element.attr("stroke"));
+        },
+        unhighlight: function () {
+            this.attr({
+                stroke: element.strokeColor
+            });
         },
         delete: function () {
             var string = this;
@@ -391,10 +414,10 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
          * @description show the handles associated with a string
          */
         showHandles: function () {
-            this.casing.e1.topHandle.reAdd();
-            this.casing.e2.topHandle.reAdd();
-            this.casing.e1.handle.reAdd();
-            this.casing.e2.handle.reAdd();
+            this.casing.elements[0].topHandle.reAdd();
+            this.casing.elements[1].topHandle.reAdd();
+            this.casing.elements[0].handle.reAdd();
+            this.casing.elements[1].handle.reAdd();
         },
         remove: function () {
             this.casing.remove();
@@ -417,6 +440,39 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
     };
 
 
+
+    var BaseElementSet = function () {
+        this.elements = [];
+        this.handles = [];
+        this.strokeColor = '#000';
+    };
+    BaseElementSet.prototype = {
+        highlight: function () {
+            this.elements.forEach(function (element) {
+                element.attr({
+                    stroke: appConst.highlightHex
+                });
+            });
+        },
+        unhighlight: function () {
+            var color = this.strokeColor;
+            this.elements.forEach(function (element) {
+                element.attr({
+                    stroke: color
+                });
+            });
+        },
+        select: function () {
+            this.parent.select();
+        },
+        registerSelectClickable: function () {
+            this.elements.forEach(angular.bind(this, function (element) {
+                element.node.clickInfo = {
+                    baseElementSet: this
+                };
+            }));
+        }
+    };
 
 
 
@@ -478,11 +534,17 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
             if (bottom >= 0 && bottom !== undefined && bottom !== null) this.bottom = bottom;
             if (top >= 0 && top !== undefined && top !== null) this.top = top;
             if (!this.isVisible) this.show();
+            this.enforceBounds();
             this.x2 = mirrorPoint(this.x1);
             this.e1.attr({
                 path: this.getPathString()
             });
             this.e1.handle.move(well.midPoint, this.bottom);
+        },
+        enforceBounds: function () {
+            if (this.bottom < this.top) {
+                this.bottom = this.top;
+            }
         },
         show: function () {
             this.visible = true;
@@ -640,29 +702,30 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
      * @param {Number} y coordinate for bottom of the casing
      */
     var Casing = function (parent, x, bottom) {
+        BaseElementSet.call(this);
         this.packers = [];
         this.bottom = bottom || 100;
         this.x1 = x || well.midPoint + 50;
         this.x2 = mirrorPoint(this.x1);
-        this.top = well.groundLevel - 10;
+        this.top = well.groundLevel;
         this.parent = parent;
 
 
-        this.e1 = paper.line(this.x1, this.bottom, this.x1, this.top);
-        this.e2 = paper.line(this.x2, this.bottom, this.x2, this.top);
+        this.elements[0] = paper.line(this.x1, this.bottom, this.x1, this.top);
+        this.elements[1] = paper.line(this.x2, this.bottom, this.x2, this.top);
 
         this.hanger = new Hanger(this);
         this.packers.push(this.hanger);
 
-        this.e1.topHandle = new Handle(this.x1, this.top, angular.bind(this, this.dragMoveTop));
-        this.e2.topHandle = new Handle(this.x2, this.top, angular.bind(this, this.dragMoveTop));
-        this.e1.handle = new Handle(this.x1, this.bottom, angular.bind(this.parent, this.parent.dragMove));
-        this.e2.handle = new Handle(this.x2, this.bottom, angular.bind(this.parent, this.parent.dragMove));
+        this.elements[0].topHandle = new Handle(this.x1, this.top, angular.bind(this, this.dragMoveTop));
+        this.elements[1].topHandle = new Handle(this.x2, this.top, angular.bind(this, this.dragMoveTop));
+        this.elements[0].handle = new Handle(this.x1, this.bottom, angular.bind(this.parent, this.parent.dragMove));
+        this.elements[1].handle = new Handle(this.x2, this.bottom, angular.bind(this.parent, this.parent.dragMove));
 
-        registerSelectClickable(this.e1, angular.bind(this.parent, this.parent.select));
-        registerSelectClickable(this.e2, angular.bind(this.parent, this.parent.select));
+        this.registerSelectClickable();
     };
-    Casing.prototype = {
+    Casing.prototype = angular.copy(BaseElementSet.prototype);
+    angular.extend(Casing.prototype, {
         /**
          * @function move
          * @description set the position of the casing
@@ -682,22 +745,22 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
                 element.move();
             });
 
-            this.e1.attr({
+            this.elements[0].attr({
                 x1: this.x1,
                 x2: this.x1,
                 y1: this.bottom,
                 y2: this.top
             });
-            this.e2.attr({
+            this.elements[1].attr({
                 x1: this.x2,
                 x2: this.x2,
                 y1: this.bottom,
                 y2: this.top
             });
-            this.e1.topHandle.move(this.x1, this.top);
-            this.e2.topHandle.move(this.x2, this.top);
-            this.e1.handle.move(this.x1, this.bottom);
-            this.e2.handle.move(this.x2, this.bottom);
+            this.elements[0].topHandle.move(this.x1, this.top);
+            this.elements[1].topHandle.move(this.x2, this.top);
+            this.elements[0].handle.move(this.x1, this.bottom);
+            this.elements[1].handle.move(this.x2, this.bottom);
         },
         addPacker: function () {
             this.packers.push(new Packer(this));
@@ -708,11 +771,11 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         },
         remove: function () {
             var i;
-            [this.e1, this.e2]
+            [this.elements[0], this.elements[1]]
             .forEach(function (element, index) {
                 element.remove();
             });
-            [this.e1.topHandle, this.e2.topHandle, this.e1.handle, this.e2.handle].forEach(function (element) {
+            [this.elements[0].topHandle, this.elements[1].topHandle, this.elements[0].handle, this.elements[1].handle].forEach(function (element) {
                 element.remove();
             });
             this.packers.forEach(function (element, index, array) {
@@ -722,7 +785,7 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         dragMoveTop: function (dx, dy, x, y, evt) {
             this.move(null, null, evt.offsetY);
         }
-    };
+    });
 
     /**
      * @class Triangles
@@ -732,19 +795,21 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
      * @param {Number} y coordinate for bottom of the triangle
      */
     var Triangles = function (parent, x, y) {
+        BaseElementSet.call(this);
         this.bottom = y || 100;
         this.x1 = x || well.midPoint + 50;
         this.x2 = mirrorPoint(this.x1);
         this.parent = parent;
-        this.e1 = paper.polygon(this.triPoints(this.x1, this.bottom)).attr(this.triFormat());
-        this.e2 = paper.polygon(this.triPoints(this.x2, this.bottom)).attr(this.triFormat());
+        this.elements[0] = paper.polygon(this.triPoints(this.x1, this.bottom)).attr(this.triFormat());
+        this.elements[1] = paper.polygon(this.triPoints(this.x2, this.bottom)).attr(this.triFormat());
 
-        registerSelectClickable(this.e1, angular.bind(this.parent, this.parent.select));
-        registerSelectClickable(this.e2, angular.bind(this.parent, this.parent.select));
+        registerSelectClickable(this.elements[0], angular.bind(this.parent, this.parent.select));
+        registerSelectClickable(this.elements[1], angular.bind(this.parent, this.parent.select));
 
         return this;
     };
-    Triangles.prototype = {
+    Triangles.prototype = angular.copy(BaseElementSet.prototype);
+    angular.extend(Triangles.prototype, {
         triPoints: function (x, y) {
             var sign = (x > well.midPoint) ? 1 : -1;
             var d = 10;
@@ -759,22 +824,22 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
             if (csLib.isExistPositive(x)) this.x1 = x;
             if (csLib.isExistPositive(y)) this.bottom = y;
             this.x2 = mirrorPoint(this.x1);
-            this.e1.attr({
+            this.elements[0].attr({
                 points: this.triPoints(this.x1, this.bottom)
             });
-            this.e2.attr({
+            this.elements[1].attr({
                 points: this.triPoints(this.x2, this.bottom)
             });
         },
         remove: function () {
             var i;
-            [this.e1, this.e2]
+            [this.elements[0], this.elements[1]]
             .forEach(function (element, index) {
                 element.remove();
             });
 
         }
-    };
+    });
 
 
 
@@ -786,6 +851,7 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
      * @param {Number} y coordinate for bottom of the casing
      */
     var Cements = function (parent, x, y) {
+        BaseElementSet.call(this);
         this.bottom = y || 100;
         this.x1 = x || well.midPoint + 50;
         this.x2 = mirrorPoint(this.x1);
@@ -796,17 +862,18 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
 
         this.enforceBounds();
 
-        this.e1 = paper.polygon(this.cementPoints(this.x1)).attr(this.cemFormat("#aaaaaa"));
-        this.e2 = paper.polygon(this.cementPoints(this.x2)).attr(this.cemFormat("#aaaaaa"));
-        this.e1.handle = new Handle(this.x1 + (appConst.cementWidth * sign), this.bottom - (this.height / 2), angular.bind(this, this.dragCement));
-        this.e2.handle = new Handle(this.x2 - (appConst.cementWidth * sign), this.bottom - (this.height / 2), angular.bind(this, this.dragCement));
-        this.e1.topHandle = new Handle(this.x1 + (appConst.cementWidth * sign), this.bottom - this.height, angular.bind(this, this.dragCementTop));
-        this.e2.topHandle = new Handle(this.x2 - (appConst.cementWidth * sign), this.bottom - this.height, angular.bind(this, this.dragCementTop));
+        this.elements[0] = paper.polygon(this.cementPoints(this.x1)).attr(this.cemFormat("#aaaaaa"));
+        this.elements[1] = paper.polygon(this.cementPoints(this.x2)).attr(this.cemFormat("#aaaaaa"));
+        this.elements[0].handle = new Handle(this.x1 + (appConst.cementWidth * sign), this.bottom - (this.height / 2), angular.bind(this, this.dragCement));
+        this.elements[1].handle = new Handle(this.x2 - (appConst.cementWidth * sign), this.bottom - (this.height / 2), angular.bind(this, this.dragCement));
+        this.elements[0].topHandle = new Handle(this.x1 + (appConst.cementWidth * sign), this.bottom - this.height, angular.bind(this, this.dragCementTop));
+        this.elements[1].topHandle = new Handle(this.x2 - (appConst.cementWidth * sign), this.bottom - this.height, angular.bind(this, this.dragCementTop));
 
-        registerSelectClickable(this.e1, angular.bind(this.parent, this.parent.select));
-        registerSelectClickable(this.e2, angular.bind(this.parent, this.parent.select));
+        registerSelectClickable(this.elements[0], angular.bind(this.parent, this.parent.select));
+        registerSelectClickable(this.elements[1], angular.bind(this.parent, this.parent.select));
     };
-    Cements.prototype = {
+    Cements.prototype = angular.copy(BaseElementSet.prototype);
+    angular.extend(Cements.prototype, {
         enforceBounds: function () {
             //helper alias
             var myCasing = this.parent.casing;
@@ -859,28 +926,28 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
 
             var cemPoints = this.cementPoints(this.x1);
             var cemPointso = this.cementPoints(this.x2);
-            this.e1.attr({
+            this.elements[0].attr({
                 points: cemPoints
             });
-            this.e2.attr({
+            this.elements[1].attr({
                 points: cemPointso
             });
-            this.e1.topHandle.move(cemPoints[4], cemPoints[5]);
-            this.e2.topHandle.move(cemPointso[4], cemPointso[5]);
-            this.e1.handle.move(cemPoints[4], cemPoints[5] + this.height / 2);
-            this.e2.handle.move(cemPointso[4], cemPointso[5] + this.height / 2);
+            this.elements[0].topHandle.move(cemPoints[4], cemPoints[5]);
+            this.elements[1].topHandle.move(cemPointso[4], cemPointso[5]);
+            this.elements[0].handle.move(cemPoints[4], cemPoints[5] + this.height / 2);
+            this.elements[1].handle.move(cemPointso[4], cemPointso[5] + this.height / 2);
         },
         remove: function () {
             var i;
-            [this.e1, this.e2]
+            [this.elements[0], this.elements[1]]
             .forEach(function (element, index) {
                 element.remove();
             });
-            [this.e1.topHandle, this.e2.topHandle, this.e1.handle, this.e2.handle].forEach(function (element) {
+            [this.elements[0].topHandle, this.elements[1].topHandle, this.elements[0].handle, this.elements[1].handle].forEach(function (element) {
                 element.remove();
             });
         }
-    };
+    });
 
     var Handle = function (x, y, dragHandler) {
         this.e = paper.circle(x, y, 5).attr({
