@@ -74,8 +74,6 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
             delete paper.unhighlight;
         }
         if (evt.srcElement.hasOwnProperty("clickInfo") && !well.drag.happened) {
-            evt.srcElement.clickInfo.highlight();
-            paper.unhighlight = evt.srcElement.clickInfo.unhighlight;
             if (evt.srcElement.clickInfo.hasOwnProperty('baseElementSet')) {
                 evt.srcElement.clickInfo.baseElementSet.highlight();
                 paper.unhighlight = angular.bind(evt.srcElement.clickInfo.baseElementSet, evt.srcElement.clickInfo.baseElementSet.unhighlight);
