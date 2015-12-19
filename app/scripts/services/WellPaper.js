@@ -132,30 +132,7 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
 
 
 
-    /**
-     * @function registerSelectClickable
-     * @description add clickInfo to the element node so it can be accessed when a click happens
-     * @param {Object} element the Node.js element object to add
-     * @param {Function} handler function to use as a click event handler for when the element is clicked
-     */
-    var registerSelectClickable = function (element, handler, highlight, unhighlight) {
-        element.node.clickInfo = {
-            handler: handler,
-            highlight: highlight || function () {
-                element.strokeColor = element.attr("stroke");
-                element.attr({
-                    stroke: appConst.highlightHex
-                });
-                console.log(element.attr("stroke"));
-            },
-            unhighlight: unhighlight || function () {
-                element.attr({
-                    stroke: element.strokeColor
-                });
-            }
-        };
 
-    };
 
     var notifySelection = function (selType, x, y) {
         well.selectionObject = {
@@ -425,8 +402,10 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
 
     var BaseElementSet = function () {
         this.elements = [];
+        this.x = [];
         this.strokeColor = '#000';
         this.selectElement = this;
+        this.notifySelection = null;
     };
     BaseElementSet.prototype = {
         highlight: function () {
@@ -451,6 +430,9 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
                 });
             });
             well.selectedItem = this.selectElement;
+            if (csLib.isExist(this.notifySelection)) {
+                notifySelection(this.notifySelection, this.x1, this.bottom + this.height);
+            }
         },
         /**
          * @function remove
@@ -468,6 +450,10 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
                 element.remove();
             });
         },
+        /**
+         * @function registerSelectClickable
+         * @description add clickInfo to the element node so it can be accessed when a click happens
+         */
         registerSelectClickable: function () {
             this.elements.forEach(angular.bind(this, function (element) {
                 element.node.clickInfo = {
@@ -475,9 +461,14 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
                 };
             }));
         },
+
+        /**
+         * @function initHandles
+         *                   @description make an empty handles array for each element if it doesn't already exist
+         */
         initHandles: function () {
             this.elements.forEach(function (element) {
-                element.handles = [];
+                if (!element.handles) element.handles = [];
             });
         },
         /**
@@ -523,7 +514,7 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         this.initHandles();
         this.elements[0].handles[0] = new Handle(well.midPoint, this.bottom, angular.bind(this, this.dragOHBottom));
 
-        this.remove();
+        this.hide();
         this.registerSelectClickable();
     };
     OpenHole.prototype = angular.copy(BaseElementSet.prototype);
@@ -569,6 +560,7 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         show: function () {
             this.visible = true;
             paper.append(this.elements[0]);
+
         },
         hide: function () {
             this.visible = false;
@@ -603,6 +595,7 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         this.x1 = this.myCasing.x1 - (sign * this.width);
         this.x2 = mirrorPoint(this.x1);
         this.selectElement = this; //selections should happen at the Packer level
+        this.notifySelection = selectionTypes.packer;
 
         this.elements[0] = paper.polygon(this.points(this.x1));
         this.elements[1] = paper.polygon(this.points(this.x2));
@@ -628,12 +621,6 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         },
         handleX: function (x) {
             return x;
-        },
-        select: function () {
-            this.elements[0].handles[0].reAdd();
-            this.elements[1].handles[0].reAdd();
-            well.selectedItem = this;
-            notifySelection(selectionTypes.packer, this.x1, this.bottom + this.height);
         },
         drag: function (dx, dy, x, y, evt) {
             this.move(evt.offsetX, evt.offsetY);
@@ -982,29 +969,35 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
             this.e.remove();
         },
         remove: function () {
+            console.log("removing handle");
             this.hide();
             this.e.undrag();
         }
     };
 
     var GroundLevel = function (parent, x, y) {
+        BaseElementSet.call(this);
         this.parent = parent;
         this.x1 = Math.max(x, mirrorPoint(x));
         this.x2 = mirrorPoint(this.x1);
         this.maxx = paper.width;
         this.y = y;
-        this.e1 = paper.line(this.x1, this.y, this.maxx, this.y).attr(this.style());
-        this.e2 = paper.line(0, this.y, this.x2, this.y).attr(this.style());
+        this.selectElement = this;
+        this.strokeColor = 'brown';
 
-        this.e1.handle = new Handle(this.handleXPos(), this.y, angular.bind(this, this.dragGroundLevel));
+        this.elements[0] = paper.line(this.x1, this.y, this.maxx, this.y).attr(this.style());
+        this.elements[2] = paper.line(0, this.y, this.x2, this.y).attr(this.style());
 
-        registerSelectClickable(this.e1, angular.bind(this, this.select));
-        registerSelectClickable(this.e2, angular.bind(this, this.select));
+        this.initHandles();
+        this.elements[0].handles[0] = new Handle(this.handleXPos(), this.y, angular.bind(this, this.dragGroundLevel));
+
+        this.registerSelectClickable();
     };
-    GroundLevel.prototype = {
+    GroundLevel.prototype = angular.copy(BaseElementSet.prototype);
+    angular.extend(GroundLevel.prototype, {
         style: function () {
             return {
-                stroke: "brown"
+                stroke: this.strokeColor
             };
         },
         move: function (x, y) {
@@ -1014,17 +1007,17 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
             }
             if (y >= 0 && y !== undefined && y !== null) this.y = y;
 
-            this.e1.attr({
+            this.elements[0].attr({
                 x1: this.x1,
                 y1: this.y,
                 y2: this.y
             });
-            this.e2.attr({
+            this.elements[2].attr({
                 x2: this.x2,
                 y1: this.y,
                 y2: this.y
             });
-            this.e1.handle.move(this.handleXPos(), this.y);
+            this.elements[0].handles[0].move(this.handleXPos(), this.y);
             this.parent.groundLevel = this.y;
         },
         handleXPos: function () {
@@ -1033,12 +1026,8 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         dragGroundLevel: function (dx, dy, x, y, evt) {
             this.move(null, evt.offsetY);
         },
-        select: function (i) {
-            well.selectedItem = this;
-            this.e1.handle.reAdd();
-        }
-    };
+    });
 
 
     return this;
-            }]);
+}]);
