@@ -331,7 +331,7 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
             y = evt.offsetY;
             this.casing.move(x, y);
             this.triangles.move(x, y);
-            this.cement.move(x, y);
+            this.cement.move(x, null, null, y);
             this.well.checkOHLowest(this.casing);
             this.well.checkWidestString(this.casing);
             updateContextMenuPos(x, y);
@@ -846,6 +846,7 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
     var Cements = function (parent, x, y) {
         BaseElementSet.call(this);
         this.bottom = y || 100;
+        this.shoeY = this.bottom;
         this.x[0] = x || well.midPoint + 50;
         this.x[1] = mirrorPoint(this.x[0]);
         this.height = appConst.cementHeight;
@@ -910,10 +911,14 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         dragCement: function (dx, dy, x, y, evt) {
             this.move(null, this.height / 2 + evt.offsetY, null);
         },
-        move: function (x, y, h) {
+        move: function (x, y, h, shoeY) {
             if (csLib.isExistPositive(x)) this.x[0] = x;
             if (csLib.isExistPositive(y)) this.bottom = y;
             if (csLib.isExistPositive(h)) this.height = h;
+            if (csLib.isExistPositive(shoeY)) {
+                this.bottom += (shoeY - this.shoeY);
+                this.shoeY = shoeY;
+            }
             this.x[1] = mirrorPoint(this.x[0]);
             var sign = getSign(this.x[0]);
             this.top = this.bottom - this.height;
