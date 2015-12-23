@@ -640,7 +640,8 @@ app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csL
         },
         updateX: function (x) {
             var sign = getSign(this.myCasing.x[0]);
-            if (x >= 0 && x !== undefined && x !== null) {
+            if (csLib.isExistPositive(x)) {
+                //figure out if it's the handle from element 0 or 1
                 if (this.elements[0].handles[0].e.node === well.drag.element) {
                     this.width = (sign * this.myCasing.x[0]) - (x * sign);
                 } else {
