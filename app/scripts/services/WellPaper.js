@@ -44,6 +44,9 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         well.width = x;
         well.initOpenHole();
 
+        well.groundLine.select();
+
+
         return paper;
     };
 
@@ -136,8 +139,6 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
 
 
 
-
-
     var notifySelection = function (selType, x, y) {
         well.selectionObject = {
             selectionType: selType,
@@ -153,12 +154,15 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
     };
 
     var hideSelection = function () {
+        //        if (csLib.isExist(well.selectedItem.notifySelection)) {
         selectionDefer.notify({
             selectionType: selectionTypes.none
         });
+        //        }
     };
 
     var restoreSelection = function () {
+        //        if (csLib.isExist(well.selectedItem.notifySelection)) 
         selectionDefer.notify(well.selectionObject);
     };
 
@@ -171,8 +175,10 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             element.remove();
         });
         handles = [];
-        well.selectedItem = null;
-        notifySelection(selectionTypes.none);
+        if (well) {
+            well.selectedItem = null;
+            notifySelection(selectionTypes.none);
+        }
     };
 
     /**
@@ -213,6 +219,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         this.lowestCasing = this.groundLevel;
 
         this.groundLine = new GroundLevel(this, center, this.groundLevel);
+
     };
     Well.prototype = {
         /**
@@ -277,137 +284,56 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             this.widestCasing = saveE;
         },
         initOpenHole: function () {
-            this.openHole = new OpenHole(100, 700, 100);
+            this.openHole = new OpenHole(this, 100, 700, 100);
         }
     };
 
-    /**
-     * @class CasingString
-     * @param {Number} x inside bottom corner of the string
-     * @param {Number} y bottom of the string
-     */
-    var CasingString = function (well, x, y) {
+    var XSet = function (midPoint, x) {
+        this.midPoint = midPoint;
+        if (csLib.isExistPositive(x)) {
+            this.setBoth(x);
+        }
+    };
+    XSet.prototype = {
+        mirrorPoint: function (x) {
+            return this.midPoint - (x - this.midPoint);
+        },
+        setBoth: function (x) {
+            this.right = Math.max(x, this.mirrorPoint(x));
+            this.left = this.mirrorPoint(this.right);
+            this.enforceBounds();
+        },
+        enforceBounds: function () {
+            if (this.right - this.left < 2) {
+                this.right = this.midPoint + 1;
+                this.left = this.midPoint - 1;
+            }
+        }
+    };
 
+    var ParentString = function (well, x, y) {
         this.well = well;
-        //Clear any previous selectino
-        deselectCurrent();
-
-
-
-        //Make the elements in order of layering
-        this.cement = new Cements(this, x, y);
-        this.triangles = new Triangles(this, x, y);
-        this.casing = new Casing(this, x, y);
-
-
-
-        this.well.checkOHLowest(this.casing);
-        this.well.checkWidestString(this.casing);
-
-
-        //Show the handles on the new string
-        this.select();
+        this.x = new XSet(well.midPoint, x);
+        this.bottom = y;
+        this.top = well.groundLevel;
+        this.minHeight = 20;
     };
-    CasingString.prototype = {
-        select: function () { //copy of selectString
-            this.casing.select();
-            this.cement.select();
-            this.well.selectedItem = this;
-            notifySelection(selectionTypes.casingString, this.casing.x[0], this.casing.bottom);
+    ParentString.prototype = {
+        moveBottomXY: function (x, y) {
+            this.x.setBoth(x);
+            this.bottom = y;
+            this.enforceMinHeight();
         },
-        remove: function () {
-            this.casing.remove();
-            this.triangles.remove();
-            this.cement.remove();
-        },
-        highlight: function () {
-            this.casing.highlight();
-            this.triangles.highlight();
-            this.cement.highlight();
-        },
-        unhighlight: function () {
-            this.casing.unhighlight();
-            this.triangles.unhighlight();
-            this.cement.unhighlight();
-        },
-        dragMove: function (dx, dy, x, y, evt) {
-            x = evt.offsetX;
-            y = evt.offsetY;
-            this.casing.move(x, y);
-            this.triangles.move(x, y);
-            this.cement.move(x, null, null, y);
-            this.well.checkOHLowest(this.casing);
-            this.well.checkWidestString(this.casing);
-            updateContextMenuPos(x, y);
-        },
-        delete: function () {
-            var string = this;
-            this.well.checkWidestString(string.casing);
-            string.remove();
-            deselectCurrent();
-            this.well.strings.forEach(function (element, index, array) {
-                if (element === string) delete array[index];
-            });
-            string = null;
-            this.well.checkWidestString(null);
+        enforceMinHeight: function () {
+            if (this.bottom - this.top < this.minHeight) this.bottom = this.top + this.minHeight;
         }
     };
 
-
-
-
-    /**
-     * @class TubingString
-     * @param {Number} x inside bottom corner of the string
-     * @param {Number} y bottom of the string
-     */
-    var TubingString = function (well, x, y) {
-
-        this.well = well;
-        //Clear any previous selectino
-        deselectCurrent();
-
-        //Make the elements in order of layering
-        this.casing = new Casing(this, x, y);
-
-        //Show the handles on the new string
-        this.select();
-    };
-    TubingString.prototype = {
-        select: function () { //copy of selectString
-            this.casing.select();
-            this.well.selectedItem = this;
-            notifySelection(selectionTypes.casingString, this.casing.x[0], this.casing.bottom);
-        },
-        remove: function () {
-            this.casing.remove();
-        },
-        dragMove: function (dx, dy, x, y, evt) {
-            x = evt.offsetX;
-            y = evt.offsetY;
-            this.casing.move(x, y);
-            updateContextMenuPos(x, y);
-        },
-        highlight: function () {
-            this.casing.highlight();
-        },
-        unhighlight: function () {
-            this.casing.unhighlight();
-        },
-        delete: function () {
-            var string = this;
-            string.remove();
-            deselectCurrent();
-            this.well.strings.forEach(function (element, index, array) {
-                if (element === string) delete array[index];
-            });
-            string = null;
+    var BaseElementSet = function (parent) {
+        if (parent) {
+            this.parent = parent;
+            this.well = parent.well;
         }
-    };
-
-
-
-    var BaseElementSet = function () {
         this.elements = [];
         this.x = [];
         this.strokeColor = '#000';
@@ -431,6 +357,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             });
         },
         select: function () {
+
             this.elements.forEach(function (element, index) {
                 element.handles.forEach(function (element) {
                     element.reAdd();
@@ -441,12 +368,16 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
                 notifySelection(this.notifySelection, this.x[0], this.bottom + this.height);
             }
         },
+        postCreate: function () {
+            deselectCurrent();
+        },
         /**
          * @function remove
          * @description removes the elementSet and all assciated elements from the paper.  Does not delete.  Overloaded
          * with the same property name as the Snap.svg elements, Handles, and String classes, so remove() can be called agnostically
          */
         remove: function () {
+
             this.elements.forEach(function (element, index) {
                 element.handles.forEach(function (element) {
                     element.remove();
@@ -488,8 +419,130 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
                     handle.reAdd();
                 });
             }));
+        },
+        width: function () {
+            return Math.abs(x[1] - x[0]);
         }
     };
+
+    /**
+     * @class CasingString
+     * @param {Number} x inside bottom corner of the string
+     * @param {Number} y bottom of the string
+     */
+    var CasingString = function (well, x, y) {
+        ParentString.call(this, well, x, y);
+
+        console.log(this.x);
+        //Make the elements in order of layering
+        this.cement = new Cements(this);
+        this.triangles = new Triangles(this);
+        this.casing = new Casing(this, x, y);
+
+        this.well.checkOHLowest(this.casing);
+        this.well.checkWidestString(this.casing);
+
+        //Show the handles on the new string
+        this.select();
+    };
+    CasingString.prototype = angular.copy(ParentString.prototype);
+    angular.extend(CasingString.prototype, {
+        select: function () { //copy of selectString
+            this.casing.select();
+            this.cement.select();
+            this.well.selectedItem = this;
+            notifySelection(selectionTypes.casingString, this.casing.x[0], this.casing.bottom);
+        },
+        remove: function () {
+            this.casing.remove();
+            this.triangles.remove();
+            this.cement.remove();
+        },
+        highlight: function () {
+            this.casing.highlight();
+            this.triangles.highlight();
+            this.cement.highlight();
+        },
+        unhighlight: function () {
+            this.casing.unhighlight();
+            this.triangles.unhighlight();
+            this.cement.unhighlight();
+        },
+        dragMove: function (dx, dy, x, y, evt) {
+            this.moveBottomXY(evt.offsetX, evt.offsetY);
+            x = evt.offsetX;
+            y = evt.offsetY;
+
+            this.casing.move(x, y);
+            this.triangles.move();
+            this.cement.move();
+            this.well.checkOHLowest(this.casing);
+            this.well.checkWidestString(this.casing);
+            updateContextMenuPos(x, y);
+        },
+        delete: function () {
+            var string = this;
+            this.well.checkWidestString(string.casing);
+            string.remove();
+            deselectCurrent();
+            this.well.strings.forEach(function (element, index, array) {
+                if (element === string) delete array[index];
+            });
+            string = null;
+            this.well.checkWidestString(null);
+        }
+    });
+
+
+
+
+    /**
+     * @class TubingString
+     * @param {Number} x inside bottom corner of the string
+     * @param {Number} y bottom of the string
+     */
+    var TubingString = function (well, x, y) {
+        this.well = well;
+
+        //Make the elements in order of layering
+        this.casing = new Casing(this, x, y);
+
+        //Show the handles on the new string
+        this.select();
+    };
+    TubingString.prototype = {
+        select: function () { //copy of selectString
+            this.casing.select();
+            this.well.selectedItem = this;
+            notifySelection(selectionTypes.casingString, this.casing.x[0], this.casing.bottom);
+        },
+        remove: function () {
+            this.casing.remove();
+        },
+        dragMove: function (dx, dy, x, y, evt) {
+            x = evt.offsetX;
+            y = evt.offsetY;
+            this.casing.move(x, y);
+            updateContextMenuPos(x, y);
+        },
+        highlight: function () {
+            this.casing.highlight();
+        },
+        unhighlight: function () {
+            this.casing.unhighlight();
+        },
+        delete: function () {
+            var string = this;
+            string.remove();
+            deselectCurrent();
+            this.well.strings.forEach(function (element, index, array) {
+                if (element === string) delete array[index];
+            });
+            string = null;
+        }
+    };
+
+
 
 
 
@@ -503,8 +556,9 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
      * @param {Number} bottom coordinate for the open hole section
      * @param {Number} top top of the open hole section
      */
-    var OpenHole = function (x, bottom, top) {
+    var OpenHole = function (well, x, bottom, top) {
         BaseElementSet.call(this);
+        this.well = well;
         this.x[0] = x;
         this.x[1] = mirrorPoint(this.x[0]);
         this.bottom = bottom;
@@ -523,6 +577,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
 
         this.hide();
         this.registerSelectClickable();
+        this.postCreate();
     };
     OpenHole.prototype = angular.copy(BaseElementSet.prototype);
     angular.extend(OpenHole.prototype, {
@@ -592,14 +647,13 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
      * @param {Number} height height (optional)
      * @param {number} width  starting width (optional)
      */
-    var Packer = function (parentCasing, bottom, height, width) {
-        BaseElementSet.call(this);
-        this.myCasing = parentCasing;
-        this.bottom = bottom || this.myCasing.bottom - 10;
+    var Packer = function (parent, bottom, height, width) {
+        BaseElementSet.call(this, parent);
+        this.bottom = bottom || this.parent.bottom - 10;
         this.height = height || 10;
         this.width = width || 15;
-        var sign = getSign(this.myCasing.x[0]);
-        this.x[0] = this.myCasing.x[0] - (sign * this.width);
+        var sign = getSign(this.parent.x[0]);
+        this.x[0] = this.parent.x[0] - (sign * this.width);
         this.x[1] = mirrorPoint(this.x[0]);
         this.selectElement = this; //selections should happen at the Packer level
         this.notifySelection = selectionTypes.packer;
@@ -643,19 +697,19 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             if (y >= 0 && y !== undefined && y !== null) this.bottom = y + this.height / 2;
         },
         updateX: function (x) {
-            var sign = getSign(this.myCasing.x[0]);
+            var sign = getSign(this.parent.x[0]);
             if (csLib.isExistPositive(x)) {
                 //figure out if it's the handle from element 0 or 1
                 if (this.elements[0].handles[0].e.node === well.drag.element) {
-                    this.width = (sign * this.myCasing.x[0]) - (x * sign);
+                    this.width = (sign * this.parent.x[0]) - (x * sign);
                 } else {
-                    this.width = (sign * x) - (this.myCasing.x[1] * sign);
+                    this.width = (sign * x) - (this.parent.x[1] * sign);
                 }
             }
         },
         updatePositions: function () {
-            var sign = getSign(this.myCasing.x[0]);
-            this.x[0] = this.myCasing.x[0] - (sign * this.width);
+            var sign = getSign(this.parent.x[0]);
+            this.x[0] = this.parent.x[0] - (sign * this.width);
             this.x[1] = mirrorPoint(this.x[0]);
             this.elements[0].attr({
                 points: this.points(this.x[0], sign)
@@ -668,11 +722,11 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             updateContextMenuPos(this.x[0], this.bottom + this.height);
         },
         enforceBounds: function () {
-            if (this.bottom > this.myCasing.bottom) {
-                this.bottom = this.myCasing.bottom;
+            if (this.bottom > this.parent.bottom) {
+                this.bottom = this.parent.bottom;
             }
-            if (this.width > (Math.abs(this.myCasing.x[0] - this.myCasing.x[1]) / 2)) {
-                this.width = Math.abs(this.myCasing.x[0] - this.myCasing.x[1]) / 2;
+            if (this.width > (Math.abs(this.parent.x[0] - this.parent.x[1]) / 2)) {
+                this.width = Math.abs(this.parent.x[0] - this.parent.x[1]) / 2;
             } else if (this.width < 2) {
                 this.width = 4;
             }
@@ -681,7 +735,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             console.log(this);
             deselectCurrent();
             this.remove();
-            this.myCasing.removePacker(this);
+            this.parent.removePacker(this);
         }
     });
 
@@ -698,11 +752,11 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
     Hanger.prototype = angular.copy(Packer.prototype);
     Hanger.prototype.enforceBounds = function () {
         if (this.width > -4) this.width = -4;
-        this.bottom = this.myCasing.top;
+        this.bottom = this.parent.top;
     };
     Hanger.prototype.updateY = function (y) {
         if (y >= 0 && y !== undefined && y !== null) {
-            this.myCasing.move(null, null, y + (this.height / 2));
+            this.parent.move(null, null, y + (this.height / 2));
         }
     };
 
@@ -714,13 +768,12 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
      * @param {Number} y coordinate for bottom of the casing
      */
     var Casing = function (parent, x, bottom) {
-        BaseElementSet.call(this);
+        BaseElementSet.call(this, parent);
         this.packers = [];
         this.bottom = bottom || 100;
         this.x[0] = x || well.midPoint + 50;
         this.x[1] = mirrorPoint(this.x[0]);
         this.top = well.groundLevel;
-        this.parent = parent;
         this.selectElement = this.parent; //selections should happen at the parent level
 
         this.elements[0] = paper.line(this.x[0], this.bottom, this.x[0], this.top);
@@ -736,6 +789,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         this.elements[1].handles[0] = new Handle(this.x[1], this.bottom, angular.bind(this.parent, this.parent.dragMove));
 
         this.registerSelectClickable();
+        this.postCreate();
     };
     Casing.prototype = angular.copy(BaseElementSet.prototype);
     angular.extend(Casing.prototype, {
@@ -747,10 +801,13 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
          * @param {Number} top Top of the casing string. Leave null to not change
          */
         move: function (x, bottom, top) {
-            if (x >= 0 && x !== undefined && x !== null) this.x[0] = x;
+            if (x >= 0 && x !== undefined && x !== null) {
+                this.x[0] = Math.max(x, mirrorPoint(x));
+                this.x[1] = mirrorPoint(this.x[0]);
+            }
             if (bottom >= 0 && bottom !== undefined && bottom !== null) this.bottom = bottom;
             if (top >= 0 && top !== undefined && top !== null) this.top = top;
-            this.x[1] = mirrorPoint(this.x[0]);
+
 
 
             this.enforceBounds();
@@ -777,6 +834,10 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         },
         enforceBounds: function () {
             if ((this.bottom - this.top) < 15) this.bottom = this.top + 15;
+            if (this.x[0] - this.x[1] < 10) {
+                this.x[0] = well.midPoint + 5;
+                this.x[1] = well.midPoint - 5;
+            }
         },
         addPacker: function () {
             this.packers.push(new Packer(this));
@@ -788,6 +849,8 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         },
         dragMoveTop: function (dx, dy, x, y, evt) {
             this.move(null, null, evt.offsetY);
+            if (this.parent.triangles) this.parent.triangles.move();
+            if (this.parent.cement) this.parent.cement.move();
         }
     });
 
@@ -798,21 +861,17 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
      * @param {Number} x inner x coordinate
      * @param {Number} y coordinate for bottom of the triangle
      */
-    var Triangles = function (parent, x, y) {
-        BaseElementSet.call(this);
+    var Triangles = function (parent) {
+        BaseElementSet.call(this, parent);
 
-        this.bottom = y || 100;
-        this.x[0] = x || well.midPoint + 50;
-        this.x[1] = mirrorPoint(this.x[0]);
-        this.parent = parent;
+
         this.selectElement = this.parent; //selections should happen at the parent level
-        this.elements[0] = paper.polygon(this.triPoints(this.x[0], this.bottom)).attr(this.triFormat());
-        this.elements[1] = paper.polygon(this.triPoints(this.x[1], this.bottom)).attr(this.triFormat());
+        this.elements[0] = paper.polygon(this.triPoints(this.parent.x.right, this.parent.bottom)).attr(this.triFormat());
+        this.elements[1] = paper.polygon(this.triPoints(this.parent.x.left, this.parent.bottom)).attr(this.triFormat());
 
         this.initHandles();
         this.registerSelectClickable();
-
-        return this;
+        this.postCreate();
     };
     Triangles.prototype = angular.copy(BaseElementSet.prototype);
     angular.extend(Triangles.prototype, {
@@ -826,15 +885,12 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
                 fill: '#555'
             };
         },
-        move: function (x, y) {
-            if (csLib.isExistPositive(x)) this.x[0] = x;
-            if (csLib.isExistPositive(y)) this.bottom = y;
-            this.x[1] = mirrorPoint(this.x[0]);
+        move: function () {
             this.elements[0].attr({
-                points: this.triPoints(this.x[0], this.bottom)
+                points: this.triPoints(this.parent.x.right, this.parent.bottom)
             });
             this.elements[1].attr({
-                points: this.triPoints(this.x[1], this.bottom)
+                points: this.triPoints(this.parent.x.left, this.parent.bottom)
             });
         }
     });
@@ -849,30 +905,30 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
      * @param {Number} y coordinate for bottom of the casing
      */
     var Cements = function (parent, x, y) {
-        BaseElementSet.call(this);
-        this.bottom = y || 100;
-        this.shoeY = this.bottom;
-        this.x[0] = x || well.midPoint + 50;
-        this.x[1] = mirrorPoint(this.x[0]);
+        BaseElementSet.call(this, parent);
+
+        this.shoeY = this.parent.bottom;
+        this.bottom = this.shoeY;
         this.height = appConst.cementHeight;
         this.top = this.bottom - this.height;
-        this.parent = parent;
+
         this.selectElement = this.parent; //selections should happen at the parent level
         this.strokeColor = "#aaaaaa";
-        var sign = getSign(this.x[0]);
+
 
         this.enforceBounds();
 
-        this.elements[0] = paper.polygon(this.cementPoints(this.x[0])).attr(this.cemFormat(this.strokeColor));
-        this.elements[1] = paper.polygon(this.cementPoints(this.x[1])).attr(this.cemFormat(this.strokeColor));
+        this.elements[0] = paper.polygon(this.cementPoints(this.parent.x.right)).attr(this.cemFormat(this.strokeColor));
+        this.elements[1] = paper.polygon(this.cementPoints(this.parent.x.left)).attr(this.cemFormat(this.strokeColor));
 
         this.initHandles();
-        this.elements[0].handles[0] = new Handle(this.x[0] + (appConst.cementWidth * sign), this.bottom - (this.height / 2), angular.bind(this, this.dragCement));
-        this.elements[1].handles[0] = new Handle(this.x[1] - (appConst.cementWidth * sign), this.bottom - (this.height / 2), angular.bind(this, this.dragCement));
-        this.elements[0].handles[1] = new Handle(this.x[0] + (appConst.cementWidth * sign), this.bottom - this.height, angular.bind(this, this.dragCementTop));
-        this.elements[1].handles[1] = new Handle(this.x[1] - (appConst.cementWidth * sign), this.bottom - this.height, angular.bind(this, this.dragCementTop));
+        this.elements[0].handles[0] = new Handle(this.parent.x.right + (appConst.cementWidth), this.bottom - (this.height / 2), angular.bind(this, this.dragCement));
+        this.elements[1].handles[0] = new Handle(this.parent.x.left - (appConst.cementWidth), this.bottom - (this.height / 2), angular.bind(this, this.dragCement));
+        this.elements[0].handles[1] = new Handle(this.parent.x.right + (appConst.cementWidth), this.bottom - this.height, angular.bind(this, this.dragCementTop));
+        this.elements[1].handles[1] = new Handle(this.parent.x.left - (appConst.cementWidth), this.bottom - this.height, angular.bind(this, this.dragCementTop));
 
         this.registerSelectClickable();
+        this.postCreate();
     };
     Cements.prototype = angular.copy(BaseElementSet.prototype);
     angular.extend(Cements.prototype, {
@@ -904,34 +960,31 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         cementPoints: function (x) {
             var y = this.bottom;
             var h = this.height;
-            var sign = (x > well.midPoint) ? 1 : -1;
+            var sign = (x > this.well.midPoint) ? 1 : -1;
             var d = appConst.cementWidth;
             x = x + (sign * 2);
             return [x, y, x, y - h, x + (d * sign), y - h, x + (d * sign), y];
         },
         dragCementTop: function (dx, dy, x, y, evt) {
-            this.move(null, null, this.bottom - evt.offsetY);
+            this.move(null, this.bottom - evt.offsetY);
         },
 
         dragCement: function (dx, dy, x, y, evt) {
-            this.move(null, this.height / 2 + evt.offsetY, null);
+            this.move(this.height / 2 + evt.offsetY, null);
         },
-        move: function (x, y, h, shoeY) {
-            if (csLib.isExistPositive(x)) this.x[0] = x;
+        move: function (y, h) {
             if (csLib.isExistPositive(y)) this.bottom = y;
             if (csLib.isExistPositive(h)) this.height = h;
-            if (csLib.isExistPositive(shoeY)) {
-                this.bottom += (shoeY - this.shoeY);
-                this.shoeY = shoeY;
-            }
-            this.x[1] = mirrorPoint(this.x[0]);
-            var sign = getSign(this.x[0]);
+
+            this.bottom += (this.parent.bottom - this.shoeY);
+            this.shoeY = this.parent.bottom;
+
             this.top = this.bottom - this.height;
 
             this.enforceBounds();
 
-            var cemPoints = this.cementPoints(this.x[0]);
-            var cemPointso = this.cementPoints(this.x[1]);
+            var cemPoints = this.cementPoints(this.parent.x.right);
+            var cemPointso = this.cementPoints(this.parent.x.left);
             this.elements[0].attr({
                 points: cemPoints
             });
@@ -993,8 +1046,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
     };
 
     var GroundLevel = function (parent, x, y) {
-        BaseElementSet.call(this);
-        this.parent = parent;
+        BaseElementSet.call(this, parent);
         this.x[0] = Math.max(x, mirrorPoint(x));
         this.x[1] = mirrorPoint(this.x[0]);
         this.maxx = paper.width;
@@ -1009,6 +1061,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         this.elements[0].handles[0] = new Handle(this.handleXPos(), this.y, angular.bind(this, this.dragGroundLevel));
 
         this.registerSelectClickable();
+        this.postCreate();
     };
     GroundLevel.prototype = angular.copy(BaseElementSet.prototype);
     angular.extend(GroundLevel.prototype, {
@@ -1051,4 +1104,4 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
 
 
     return this;
-}]);
+            }]);
