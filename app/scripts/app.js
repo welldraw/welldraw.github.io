@@ -1,4 +1,7 @@
-var app = angular.module('WellDraw', ['ui.bootstrap']);
+var angular = require('angular');
+var uibs = require('angular-ui-bootstrap');
+
+var app = angular.module('WellDraw', [uibs]);
 
 app.value('appConst', {
     cementHeight: 100,
@@ -22,7 +25,7 @@ app.value('csLib', {
     }
 });
 
+module.exports = app;
 //http://stackoverflow.com/questions/9308938/inline-text-editing-in-svg
 
-//@todo: get rid of clickable array
 //@todo

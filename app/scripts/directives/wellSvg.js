@@ -1,4 +1,8 @@
-app.directive('wellSvg', ['$compile', 'WellPaper', function ($compile, WellPaper) {
+var angular = require('angular');
+
+var app = require("../app.js");
+
+module.exports = app.directive('wellSvg', ['$compile', 'WellPaper', function ($compile, WellPaper) {
     'use strict';
     return {
         restrict: 'E',

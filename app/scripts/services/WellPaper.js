@@ -1,4 +1,8 @@
-app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csLib) {
+//var Snap = require("snapsvg");
+var angular = require('angular');
+var app = require("../app.js");
+
+module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function ($q, appConst, csLib) {
     'use strict';
     var well;
     var paper;
