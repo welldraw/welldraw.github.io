@@ -15,7 +15,8 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         casingString: 1,
         packer: 2,
         openHole: 3,
-        groundLevel: 4
+        groundLevel: 4,
+        cement: 5,
     };
     this.selectionTypes = selectionTypes;
 
@@ -26,7 +27,8 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         paper.attr({
             stroke: "#000",
             strokeWidth: 4,
-            fill: "#000"
+            fill: "#000",
+            fontSize: "12"
         });
         paper.dblclick(handleNewString);
         paper.click(handleClick);
@@ -47,13 +49,15 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         well.groundLine.select();
 
 
+
         return paper;
     };
 
 
     /* GLOBAL EVENT HANDLERS ********************************************************************************************************/
     var handleNewString = function (evt) {
-        well.makeCasingString(evt.offsetX, evt.offsetY);
+        svgXY(evt);
+        well.makeCasingString(evt.svgX, evt.svgY);
     };
     var handleClick = function (evt) {
         if (well.drag.happened) {
@@ -98,9 +102,8 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         var x = well.midPoint + 40;
         var y = (paper.height - well.groundLevel) * 0.65;
         well.strings.forEach(function (string) {
-            var x1 = Math.max(string.triangles.x[0], string.triangles.x[1]);
-            if (string.triangles.bottom < y) y = string.triangles.bottom;
-            if (x1 > x) x = x1;
+            if (string.bottom < y) y = string.bottom;
+            if (string.x.right > x) x = string.x.right;
         });
         well.makeCasingString(x + appConst.cementWidth + 6, Math.max(y - well.height * 0.15, well.groundLevel + 100));
     };
@@ -112,9 +115,20 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         delete well.selectedItem;
     };
     this.addPacker = function () {
-        if (well.selectedItem.casing) well.selectedItem.casing.addPacker();
+        if (well.selectedItem) well.selectedItem.addPacker();
     };
 
+    this.changeColorCurrentSelection = function (color) {
+        if (well.selectedItem) well.selectedItem.changeColor(color);
+    };
+
+    this.addTextBox = function () {
+        if (well.selectedItem) well.selectedItem.addTextBox();
+    };
+
+    this.setCoords = function (rect) {
+        paper.rect = rect;
+    };
 
     /* GLOBAL UTILITIES ****************************************************************************************************************/
     /**
@@ -126,18 +140,6 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
     function mirrorPoint(x) {
         return paper.midPoint - (x - paper.midPoint);
     }
-
-    /**
-     * @function getSign
-     * @description get sign indicating which side of the centerline x is on
-     * @param   {Number} x coordinate
-     * @returns {Number} 1 or -1 as the sign
-     */
-    function getSign(x) {
-        return (x > well.midPoint) ? 1 : -1;
-    }
-
-
 
     var notifySelection = function (selType, x, y) {
         well.selectionObject = {
@@ -162,7 +164,8 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
     };
 
     var restoreSelection = function () {
-        //        if (csLib.isExist(well.selectedItem.notifySelection)) 
+        //        if (csLib.isExist(well.selectedItem.notifySelection))
+        console.log(well.selectionObject);
         selectionDefer.notify(well.selectionObject);
     };
 
@@ -202,6 +205,11 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         });
     };
 
+    var svgXY = function (evt) {
+        evt.svgX = evt.x - paper.rect.left;
+        evt.svgY = evt.y - paper.rect.top;
+
+    };
 
 
     /* CLASSES ****************************************************************************************************************/
@@ -219,7 +227,6 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         this.lowestCasing = this.groundLevel;
 
         this.groundLine = new GroundLevel(this, center, this.groundLevel);
-
     };
     Well.prototype = {
         /**
@@ -242,46 +249,56 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         moveTops: function (oldy, deltay) {
             this.strings.concat(this.tubingStrings).forEach(function (string) {
                 if (string.hasOwnProperty('casing')) {
-                    if (string.casing.top < oldy + 10) string.casing.move(null, null, string.casing.top + deltay);
+                    if (string.top < oldy + 10) string.move(null, null, string.top + deltay);
                 }
             });
         },
-        checkOHLowest: function (casing) {
-            var saveE = casing;
-            var bottom = casing.bottom;
+        updatedString: function (string) {
+            this.checkOHLowest(string);
+            this.checkWidestString(string);
+        },
+        checkOHLowest: function (string) {
+            var saveE = string;
+            var bottom = 0;
             this.strings.forEach(function (element, index) {
-                if (element.hasOwnProperty('casing') && element.casing.bottom > bottom) {
-                    bottom = element.casing.bottom;
-                    saveE = element.casing;
+                if (element.bottom > bottom) {
+                    bottom = element.bottom;
+                    saveE = element;
                 }
             });
-            well.openHole.show();
-            //test if casing is currently or used to be the lowest
-            if (casing === saveE || this.lowestCasing === casing) {
-                this.openHole.move(saveE.x[0], null, saveE.bottom);
+            if (!csLib.isExist(saveE)) {
+                well.openHole.hide();
             }
-            this.lowestCasing = saveE;
+            //test if string is currently or used to be the lowest
+            else if (!csLib.isExist(string) || (string === saveE || this.lowestString === string)) {
+                well.openHole.show();
+                this.openHole.move(saveE.x.right, null, saveE.bottom);
+            }
+            this.lowestString = saveE;
         },
-        checkWidestString: function (casing) {
-            var maxx;
+        checkWidestString: function (string) {
+            var maxw;
             var saveE;
-            if (casing) {
-                saveE = casing;
-                maxx = Math.max(casing.x[0], casing.x[1]);
+            if (string) {
+                saveE = string;
+                maxw = string.x.width();
             } else {
-                maxx = paper.midPoint;
+                maxw = 0;
             }
             this.strings.forEach(function (element, index) {
-                if (element.hasOwnProperty("casing") && Math.max(element.casing.x[0], element.casing.x[1]) > maxx) {
-                    maxx = Math.max(element.casing.x[0], element.casing.x[1]);
-                    saveE = element.casing;
+                if (element.x.width() > maxw) {
+                    maxw = element.x.width();
+                    saveE = element;
                 }
             });
-            //test if casing is currently or used to be the maxx
-            if (casing === saveE || this.widestCasing === casing || (casing === null || casing === undefined)) {
-                this.groundLine.move(maxx, null);
+            if (!csLib.isExist(saveE)) {
+                this.groundLine.move(this.midPoint, null);
             }
-            this.widestCasing = saveE;
+            //test if casing is currently or used to be the maxw
+            else if (string === saveE || this.widestString === string || (string === null || string === undefined)) {
+                this.groundLine.move(saveE.x.right, null);
+            }
+            this.widestString = saveE;
         },
         initOpenHole: function () {
             this.openHole = new OpenHole(this, 100, 700, 100);
@@ -308,6 +325,18 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
                 this.right = this.midPoint + 1;
                 this.left = this.midPoint - 1;
             }
+        },
+        width: function () {
+            return this.right - this.left;
+        },
+        /**
+         * @function getSign
+         * @description get sign indicating which side of the centerline x is on
+         * @param   {Number} x coordinate
+         * @returns {Number} 1 or -1 as the sign
+         */
+        getSign: function (x) {
+            return (x > this.midPoint) ? 1 : -1;
         }
     };
 
@@ -317,16 +346,48 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         this.bottom = y;
         this.top = well.groundLevel;
         this.minHeight = 20;
+
+        this.packers = [];
+        this.textBoxes = [];
+        this.hanger = new Hanger(this);
+        this.packers.push(this.hanger);
     };
     ParentString.prototype = {
-        moveBottomXY: function (x, y) {
-            this.x.setBoth(x);
-            this.bottom = y;
+        move: function (x, bottom, top) {
+            if (csLib.isExistPositive(x)) this.x.setBoth(x);
+            if (csLib.isExistPositive(bottom)) this.bottom = bottom;
+            if (csLib.isExistPositive(top)) this.top = top;
+            this.packers.forEach(function (element) {
+                element.move();
+            });
             this.enforceMinHeight();
+            this.updateElementPos();
+            updateContextMenuPos(this.x.right, this.bottom);
         },
         enforceMinHeight: function () {
             if (this.bottom - this.top < this.minHeight) this.bottom = this.top + this.minHeight;
-        }
+        },
+        addPacker: function () {
+            this.packers.push(new Packer(this));
+        },
+        addTextBox: function () {
+            this.textBoxes.push(new TextBox(this, this.x.right + 50, this.bottom + 10, "New Textbox for you to try out to see how it goes"));
+        },
+        removePacker: function (packer) {
+            var i = this.packers.indexOf(packer);
+            if (i >= 0) this.packers.splice(i, 1);
+        },
+        changeColor: function (color) {
+            this.casing.changeColor(color);
+        },
+        dragMoveTop: function (x, y, dx, dy, evt) {
+            svgXY(evt);
+            this.move(null, null, evt.svgY);
+        },
+        dragMove: function (dx, dy, x, y, evt) {
+            svgXY(evt);
+            this.move(evt.svgX, evt.svgY);
+        },
     };
 
     var BaseElementSet = function (parent) {
@@ -338,18 +399,24 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         this.x = [];
         this.strokeColor = '#000';
         this.selectElement = this;
+        /** @private notifySelection
+         * @description can be set to a member from selectionTypes to indicate that the DOM should be notified of the selection so that it can display the proper menu
+         * if it is left null the DOM will not be notified
+         */
         this.notifySelection = null;
     };
     BaseElementSet.prototype = {
         highlight: function () {
-            this.elements.forEach(function (element) {
-                element.attr({
-                    stroke: appConst.highlightHex
-                });
-            });
+            this.recolor(appConst.highlightHex);
         },
         unhighlight: function () {
-            var color = this.strokeColor;
+            this.recolor(this.strokeColor);
+        },
+        changeColor: function (color) {
+            this.strokeColor = color;
+            this.recolor(this.strokeColor);
+        },
+        recolor: function (color) {
             this.elements.forEach(function (element) {
                 element.attr({
                     stroke: color
@@ -357,7 +424,6 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             });
         },
         select: function () {
-
             this.elements.forEach(function (element, index) {
                 element.handles.forEach(function (element) {
                     element.reAdd();
@@ -365,7 +431,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             });
             well.selectedItem = this.selectElement;
             if (csLib.isExist(this.notifySelection)) {
-                notifySelection(this.notifySelection, this.x[0], this.bottom + this.height);
+                notifySelection(this.notifySelection, this.selectElement.x.right, this.selectElement.bottom + 5);
             }
         },
         postCreate: function () {
@@ -384,9 +450,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
                 });
                 element.remove();
             });
-            if (this.packers && this.packers.length > 0) this.packers.forEach(function (element, index, array) {
-                element.remove();
-            });
+
         },
         /**
          * @function registerSelectClickable
@@ -433,14 +497,14 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
     var CasingString = function (well, x, y) {
         ParentString.call(this, well, x, y);
 
-        console.log(this.x);
+
         //Make the elements in order of layering
         this.cement = new Cements(this);
         this.triangles = new Triangles(this);
-        this.casing = new Casing(this, x, y);
+        this.casing = new Casing(this);
 
-        this.well.checkOHLowest(this.casing);
-        this.well.checkWidestString(this.casing);
+        this.well.checkOHLowest(this);
+        this.well.checkWidestString(this);
 
         //Show the handles on the new string
         this.select();
@@ -449,47 +513,44 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
     angular.extend(CasingString.prototype, {
         select: function () { //copy of selectString
             this.casing.select();
-            this.cement.select();
+            //this.cement.select();
             this.well.selectedItem = this;
-            notifySelection(selectionTypes.casingString, this.casing.x[0], this.casing.bottom);
+            notifySelection(selectionTypes.casingString, this.x.right, this.bottom);
         },
         remove: function () {
             this.casing.remove();
             this.triangles.remove();
+            if (this.packers && this.packers.length > 0) this.packers.forEach(function (element, index, array) {
+                element.remove();
+            });
             this.cement.remove();
+
         },
         highlight: function () {
             this.casing.highlight();
             this.triangles.highlight();
-            this.cement.highlight();
+            //this.cement.highlight();
         },
         unhighlight: function () {
             this.casing.unhighlight();
             this.triangles.unhighlight();
-            this.cement.unhighlight();
+            //this.cement.unhighlight();
         },
-        dragMove: function (dx, dy, x, y, evt) {
-            this.moveBottomXY(evt.offsetX, evt.offsetY);
-            x = evt.offsetX;
-            y = evt.offsetY;
-
-            this.casing.move(x, y);
+        updateElementPos: function () {
+            this.casing.move();
             this.triangles.move();
             this.cement.move();
-            this.well.checkOHLowest(this.casing);
-            this.well.checkWidestString(this.casing);
-            updateContextMenuPos(x, y);
+            this.well.updatedString(this);
         },
         delete: function () {
             var string = this;
-            this.well.checkWidestString(string.casing);
             string.remove();
             deselectCurrent();
             this.well.strings.forEach(function (element, index, array) {
                 if (element === string) delete array[index];
             });
             string = null;
-            this.well.checkWidestString(null);
+            this.well.updatedString(null);
         }
     });
 
@@ -502,6 +563,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
      * @param {Number} y bottom of the string
      */
     var TubingString = function (well, x, y) {
+        ParentString.call(this, well, x, y);
         this.well = well;
 
         //Make the elements in order of layering
@@ -510,26 +572,27 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         //Show the handles on the new string
         this.select();
     };
-    TubingString.prototype = {
+    TubingString.prototype = angular.copy(ParentString.prototype);
+    angular.extend(TubingString.prototype, {
         select: function () { //copy of selectString
             this.casing.select();
             this.well.selectedItem = this;
-            notifySelection(selectionTypes.casingString, this.casing.x[0], this.casing.bottom);
+            notifySelection(selectionTypes.casingString, this.x.right, this.bottom);
         },
         remove: function () {
             this.casing.remove();
-        },
-        dragMove: function (dx, dy, x, y, evt) {
-            x = evt.offsetX;
-            y = evt.offsetY;
-            this.casing.move(x, y);
-            updateContextMenuPos(x, y);
+            if (this.packers && this.packers.length > 0) this.packers.forEach(function (element, index, array) {
+                element.remove();
+            });
         },
         highlight: function () {
             this.casing.highlight();
         },
         unhighlight: function () {
             this.casing.unhighlight();
+        },
+        updateElementPos: function () {
+            this.casing.move();
         },
         delete: function () {
             var string = this;
@@ -540,11 +603,47 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             });
             string = null;
         }
+    });
+
+
+    var TextBox = function (parent, left, top, text) {
+        BaseElementSet.call(this);
+        this.parent = parent;
+        this.well = parent.well;
+
+        this.left = left;
+        this.top = top;
+        this.selectElement = this;
+        this.strokeColor = 'black';
+
+        this.elements[0] = paper.text(this.left, this.top, text).attr({
+            strokeWidth: 0.005
+        }); //.wrap(100);
+
+        this.visible = true;
+
+        this.initHandles();
+        this.elements[0].handles[0] = new Handle(this.left - 10, this.top, angular.bind(this, this.dragMove));
+
+        this.registerSelectClickable();
+        this.postCreate();
+        this.select();
     };
-
-
-
-
+    TextBox.prototype = angular.copy(BaseElementSet.prototype);
+    angular.extend(TextBox.prototype, {
+        dragMove: function (dx, dy, x, y, evt) {
+            svgXY(evt);
+            this.move(evt.svgX, evt.svgY);
+        },
+        move: function (x, y) {
+            console.log(this.elements[0].node.getComputedTextLength());
+            this.elements[0].attr({
+                x: x + 10,
+                y: y,
+            });
+            this.elements[0].handles[0].move(x, y);
+        }
+    });
 
 
 
@@ -559,8 +658,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
     var OpenHole = function (well, x, bottom, top) {
         BaseElementSet.call(this);
         this.well = well;
-        this.x[0] = x;
-        this.x[1] = mirrorPoint(this.x[0]);
+        this.x = new XSet(this.well.midPoint, 1);
         this.bottom = bottom;
         this.top = top;
         this.selectElement = this;
@@ -582,7 +680,8 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
     OpenHole.prototype = angular.copy(BaseElementSet.prototype);
     angular.extend(OpenHole.prototype, {
         dragOHBottom: function (dx, dy, x, y, evt) {
-            this.move(null, evt.offsetY, null);
+            svgXY(evt);
+            this.move(null, evt.svgY, null);
         },
         getPathString: function () {
             var path = "";
@@ -598,21 +697,21 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
                 path += "l " + this.xValues[i % maxX] + " " + Number(Number(this.yValues[i % maxY]) - Number(diff)).toString() + " ";
                 if (curLen >= length) break;
             }
-            path += "M" + this.x[1] + " " + this.top + " " + path;
-            path += "h " + (this.x[0] - this.x[1]);
-            return "M" + this.x[0] + " " + this.top + " " + path;
+            path += "M" + this.x.left + " " + this.top + " " + path;
+            path += "h " + (this.x.right - this.x.left);
+            return "M" + this.x.right + " " + this.top + " " + path;
         },
         move: function (x, bottom, top) {
-            if (x >= 0 && x !== undefined && x !== null) this.x[0] = x;
+            if (x >= 0 && x !== undefined && x !== null) this.x.right = x;
             if (bottom >= 0 && bottom !== undefined && bottom !== null) this.bottom = bottom;
             if (top >= 0 && top !== undefined && top !== null) this.top = top;
             if (!this.isVisible) this.show();
             this.enforceBounds();
-            this.x[1] = mirrorPoint(this.x[0]);
+            this.x.left = mirrorPoint(this.x.right);
             this.elements[0].attr({
                 path: this.getPathString()
             });
-            this.elements[0].handles[0].move(well.midPoint, this.bottom);
+            this.elements[0].handles[0].move(this.x.midPoint, this.bottom);
         },
         enforceBounds: function () {
             if (this.bottom < this.top) {
@@ -652,18 +751,21 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         this.bottom = bottom || this.parent.bottom - 10;
         this.height = height || 10;
         this.width = width || 15;
-        var sign = getSign(this.parent.x[0]);
-        this.x[0] = this.parent.x[0] - (sign * this.width);
-        this.x[1] = mirrorPoint(this.x[0]);
+        this.dragInfo = {
+            startX: 0
+        };
+
+        this.x = new XSet(this.well.midPoint, this.parent.x.right - this.width);
+
         this.selectElement = this; //selections should happen at the Packer level
         this.notifySelection = selectionTypes.packer;
 
-        this.elements[0] = paper.polygon(this.points(this.x[0]));
-        this.elements[1] = paper.polygon(this.points(this.x[1]));
+        this.elements[0] = paper.polygon(this.points(this.x.right));
+        this.elements[1] = paper.polygon(this.points(this.x.left));
 
         this.initHandles();
-        this.elements[1].handles[0] = new Handle(this.handleX(this.x[1]), this.handleY(), angular.bind(this, this.drag));
-        this.elements[0].handles[0] = new Handle(this.handleX(this.x[0]), this.handleY(), angular.bind(this, this.drag));
+        this.elements[1].handles[0] = new Handle(this.handleX(this.x.left), this.handleY(), angular.bind(this, this.drag));
+        this.elements[0].handles[0] = new Handle(this.handleX(this.x.right), this.handleY(), angular.bind(this, this.drag));
 
         this.registerSelectClickable();
 
@@ -673,7 +775,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
     Packer.prototype = angular.copy(BaseElementSet.prototype);
     angular.extend(Packer.prototype, {
         points: function (x, sign) {
-            if (sign === undefined || sign === null) sign = getSign(x);
+            if (sign === undefined || sign === null) sign = this.x.getSign(x);
             return [x, this.bottom, x, this.bottom - this.height, x + (this.width * sign),
                     this.bottom - this.height, x + (this.width * sign), this.bottom];
         },
@@ -684,7 +786,8 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             return x;
         },
         drag: function (dx, dy, x, y, evt) {
-            this.move(evt.offsetX, evt.offsetY);
+            svgXY(evt);
+            this.move(evt.svgX, evt.svgY);
         },
         move: function (x, y) {
             this.updateX(x);
@@ -697,38 +800,37 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             if (y >= 0 && y !== undefined && y !== null) this.bottom = y + this.height / 2;
         },
         updateX: function (x) {
-            var sign = getSign(this.parent.x[0]);
             if (csLib.isExistPositive(x)) {
-                //figure out if it's the handle from element 0 or 1
-                if (this.elements[0].handles[0].e.node === well.drag.element) {
-                    this.width = (sign * this.parent.x[0]) - (x * sign);
-                } else {
-                    this.width = (sign * x) - (this.parent.x[1] * sign);
+                this.x.setBoth(x);
+                this.width = (this.parent.x.right - this.x.right);
+            } else {
+                if (this.dragInfo.id !== this.well.drag.id) {
+                    this.dragInfo.id = this.well.drag.id;
                 }
+                //                if (!this.dragInfo.preserveWidth) {
+                this.width = (this.parent.x.right - this.x.right);
+                //                }
             }
+
         },
         updatePositions: function () {
-            var sign = getSign(this.parent.x[0]);
-            this.x[0] = this.parent.x[0] - (sign * this.width);
-            this.x[1] = mirrorPoint(this.x[0]);
             this.elements[0].attr({
-                points: this.points(this.x[0], sign)
+                points: this.points(this.x.right)
             });
             this.elements[1].attr({
-                points: this.points(this.x[1], sign * -1)
+                points: this.points(this.x.left)
             });
-            this.elements[0].handles[0].move(this.handleX(this.x[0]), this.handleY());
-            this.elements[1].handles[0].move(this.handleX(this.x[1]), this.handleY());
-            updateContextMenuPos(this.x[0], this.bottom + this.height);
+            this.elements[0].handles[0].move(this.handleX(this.x.right), this.handleY());
+            this.elements[1].handles[0].move(this.handleX(this.x.left), this.handleY());
+            updateContextMenuPos(this.x.right, this.bottom + this.height);
         },
         enforceBounds: function () {
             if (this.bottom > this.parent.bottom) {
                 this.bottom = this.parent.bottom;
             }
-            if (this.width > (Math.abs(this.parent.x[0] - this.parent.x[1]) / 2)) {
-                this.width = Math.abs(this.parent.x[0] - this.parent.x[1]) / 2;
-            } else if (this.width < 2) {
-                this.width = 4;
+            if (this.width < 5) {
+                this.width = 5;
+                this.x.setBoth(this.parent.x.right - this.width);
             }
         },
         delete: function () {
@@ -747,11 +849,13 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
     var Hanger = function (parentCasing) {
         this.height = 6;
         Packer.call(this, parentCasing, parentCasing.top, 6, -6);
-
     };
     Hanger.prototype = angular.copy(Packer.prototype);
     Hanger.prototype.enforceBounds = function () {
-        if (this.width > -4) this.width = -4;
+        if (this.width > -5) {
+            this.width = -5;
+        }
+        this.x.setBoth(this.parent.x.right - this.width);
         this.bottom = this.parent.top;
     };
     Hanger.prototype.updateY = function (y) {
@@ -767,26 +871,21 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
      * @param {Number} x inner x coordinate
      * @param {Number} y coordinate for bottom of the casing
      */
-    var Casing = function (parent, x, bottom) {
+    var Casing = function (parent) {
         BaseElementSet.call(this, parent);
-        this.packers = [];
-        this.bottom = bottom || 100;
-        this.x[0] = x || well.midPoint + 50;
-        this.x[1] = mirrorPoint(this.x[0]);
-        this.top = well.groundLevel;
+
+
         this.selectElement = this.parent; //selections should happen at the parent level
 
-        this.elements[0] = paper.line(this.x[0], this.bottom, this.x[0], this.top);
-        this.elements[1] = paper.line(this.x[1], this.bottom, this.x[1], this.top);
+        this.elements[0] = paper.line(this.parent.x.right, this.parent.bottom, this.parent.x.right, this.parent.top);
+        this.elements[1] = paper.line(this.parent.x.left, this.parent.bottom, this.parent.x.left, this.parent.top);
 
-        this.hanger = new Hanger(this);
-        this.packers.push(this.hanger);
 
         this.initHandles();
-        this.elements[0].handles[1] = new Handle(this.x[0], this.top, angular.bind(this, this.dragMoveTop));
-        this.elements[1].handles[1] = new Handle(this.x[1], this.top, angular.bind(this, this.dragMoveTop));
-        this.elements[0].handles[0] = new Handle(this.x[0], this.bottom, angular.bind(this.parent, this.parent.dragMove));
-        this.elements[1].handles[0] = new Handle(this.x[1], this.bottom, angular.bind(this.parent, this.parent.dragMove));
+        this.elements[0].handles[1] = new Handle(this.parent.x.right, this.parent.top, angular.bind(this.parent, this.parent.dragMoveTop));
+        this.elements[1].handles[1] = new Handle(this.parent.x.left, this.parent.top, angular.bind(this.parent, this.parent.dragMoveTop));
+        this.elements[0].handles[0] = new Handle(this.parent.x.right, this.parent.bottom, angular.bind(this.parent, this.parent.dragMove));
+        this.elements[1].handles[0] = new Handle(this.parent.x.left, this.parent.bottom, angular.bind(this.parent, this.parent.dragMove));
 
         this.registerSelectClickable();
         this.postCreate();
@@ -800,55 +899,34 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
          * @param {Number} bottom coordinate for bottom of the casing.  Leave null to not change
          * @param {Number} top Top of the casing string. Leave null to not change
          */
-        move: function (x, bottom, top) {
-            if (x >= 0 && x !== undefined && x !== null) {
-                this.x[0] = Math.max(x, mirrorPoint(x));
-                this.x[1] = mirrorPoint(this.x[0]);
-            }
-            if (bottom >= 0 && bottom !== undefined && bottom !== null) this.bottom = bottom;
-            if (top >= 0 && top !== undefined && top !== null) this.top = top;
-
-
-
-            this.enforceBounds();
-            this.packers.forEach(function (element) {
-                element.move();
-            });
-
+        move: function () {
             this.elements[0].attr({
-                x1: this.x[0],
-                x2: this.x[0],
-                y1: this.bottom,
-                y2: this.top
+                x1: this.parent.x.right,
+                x2: this.parent.x.right,
+                y1: this.parent.bottom,
+                y2: this.parent.top
             });
             this.elements[1].attr({
-                x1: this.x[1],
-                x2: this.x[1],
-                y1: this.bottom,
-                y2: this.top
+                x1: this.parent.x.left,
+                x2: this.parent.x.left,
+                y1: this.parent.bottom,
+                y2: this.parent.top
             });
-            this.elements[0].handles[1].move(this.x[0], this.top);
-            this.elements[1].handles[1].move(this.x[1], this.top);
-            this.elements[0].handles[0].move(this.x[0], this.bottom);
-            this.elements[1].handles[0].move(this.x[1], this.bottom);
+            this.elements[0].handles[1].move(this.parent.x.right, this.parent.top);
+            this.elements[1].handles[1].move(this.parent.x.left, this.parent.top);
+            this.elements[0].handles[0].move(this.parent.x.right, this.parent.bottom);
+            this.elements[1].handles[0].move(this.parent.x.left, this.parent.bottom);
         },
         enforceBounds: function () {
-            if ((this.bottom - this.top) < 15) this.bottom = this.top + 15;
-            if (this.x[0] - this.x[1] < 10) {
-                this.x[0] = well.midPoint + 5;
-                this.x[1] = well.midPoint - 5;
+            if ((this.parent.bottom - this.parent.top) < 15) this.parent.bottom = this.parent.top + 15;
+            if (this.parent.x.right - this.parent.x.left < 10) {
+                this.parent.x.right = well.midPoint + 5;
+                this.parent.x.left = well.midPoint - 5;
             }
         },
-        addPacker: function () {
-            this.packers.push(new Packer(this));
-            console.log(this.packers);
-        },
-        removePacker: function (packer) {
-            var i = this.packers.indexOf(packer);
-            if (i >= 0) this.packers.splice(i, 1);
-        },
         dragMoveTop: function (dx, dy, x, y, evt) {
-            this.move(null, null, evt.offsetY);
+            svgXY(evt);
+            this.move(null, null, evt.svgY);
             if (this.parent.triangles) this.parent.triangles.move();
             if (this.parent.cement) this.parent.cement.move();
         }
@@ -876,7 +954,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
     Triangles.prototype = angular.copy(BaseElementSet.prototype);
     angular.extend(Triangles.prototype, {
         triPoints: function (x, y) {
-            var sign = (x > well.midPoint) ? 1 : -1;
+            var sign = this.parent.x.getSign(x);
             var d = 10;
             return [x, y, x, y - d, x + (d * sign), y];
         },
@@ -911,9 +989,11 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         this.bottom = this.shoeY;
         this.height = appConst.cementHeight;
         this.top = this.bottom - this.height;
+        this.x = this.parent.x;
 
-        this.selectElement = this.parent; //selections should happen at the parent level
+        this.selectElement = this; //selections should happen for cement seperate from rest of string
         this.strokeColor = "#aaaaaa";
+        this.notifySelection = selectionTypes.packer;
 
 
         this.enforceBounds();
@@ -933,44 +1013,48 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
     Cements.prototype = angular.copy(BaseElementSet.prototype);
     angular.extend(Cements.prototype, {
         enforceBounds: function () {
-            //helper alias
-            var myCasing = this.parent.casing;
-            if (myCasing && this.top < myCasing.top) {
-                this.height = this.bottom - myCasing.top;
+            if (this.top < this.parent.top) {
+                this.height = this.bottom - this.parent.top;
                 if (this.height < 10) {
                     this.height = 10;
-                    this.bottom = myCasing.top + 10;
+                    this.bottom = this.parent.top + 10;
                 }
             }
-            if (myCasing && this.bottom > myCasing.bottom) {
-                this.bottom = this.parent.casing.bottom;
+            if (this.bottom > this.parent.bottom) {
+                this.bottom = this.parent.bottom;
             }
         },
         cemFormat: function (color) {
             var custFill = paper.path("M10-5-10,15M15,0,0,15M0-5-20,15").attr({
                 fill: "none",
                 stroke: color,
-                strokeWidth: 5
+                strokeWidth: 4
             }).pattern(0, 0, 10, 10);
             return {
                 fill: custFill,
                 stroke: color
             };
         },
+        recolor: function (color) {
+            this.elements.forEach(angular.bind(this, function (element) {
+                element.attr(this.cemFormat(color));
+            }));
+        },
         cementPoints: function (x) {
             var y = this.bottom;
             var h = this.height;
-            var sign = (x > this.well.midPoint) ? 1 : -1;
+            var sign = this.parent.x.getSign(x);
             var d = appConst.cementWidth;
             x = x + (sign * 2);
             return [x, y, x, y - h, x + (d * sign), y - h, x + (d * sign), y];
         },
         dragCementTop: function (dx, dy, x, y, evt) {
-            this.move(null, this.bottom - evt.offsetY);
+            svgXY(evt);
+            this.move(null, this.bottom - evt.svgY);
         },
-
         dragCement: function (dx, dy, x, y, evt) {
-            this.move(this.height / 2 + evt.offsetY, null);
+            svgXY(evt);
+            this.move(this.height / 2 + evt.svgY, null);
         },
         move: function (y, h) {
             if (csLib.isExistPositive(y)) this.bottom = y;
@@ -995,6 +1079,9 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             this.elements[1].handles[1].move(cemPointso[4], cemPointso[5]);
             this.elements[0].handles[0].move(cemPoints[4], cemPoints[5] + this.height / 2);
             this.elements[1].handles[0].move(cemPointso[4], cemPointso[5] + this.height / 2);
+
+
+            if (this.well.selectedItem === this) updateContextMenuPos(this.parent.x.right, this.bottom);
         }
     });
 
@@ -1005,26 +1092,29 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             strokeWidth: 2,
             cursor: 'move'
         });
-        this.e.drag(dragHandler, this.universalDragStartHandler, this.universalDragEndHandler);
+        this.e.drag(dragHandler, this.dragStartHandler, this.dragEndHandler);
         handles.push(this.e);
     };
     Handle.prototype = {
-        universalDragStartHandler: function (x, y, evt) {
+        dragStartHandler: function (x, y, evt) {
+            svgXY(evt);
             well.drag = {
                 element: evt.srcElement,
-                happened: true
+                happened: true,
+                id: evt.timeStamp
             };
             well.lastDrag = {
-                x: evt.offsetX,
-                y: evt.offsetY
+                x: evt.svgX,
+                y: evt.svgY
             };
             hideSelection();
             hideHandlesDuringDrag(evt.srcElement);
         },
-        universalDragEndHandler: function () {
+        dragEndHandler: function () {
             restoreSelection();
             restoreHandlesAfterDrag();
             well.drag.happened = false;
+            well.drag.id = 0;
         },
         reAdd: function () {
             paper.append(this.e);
@@ -1098,7 +1188,8 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             return this.x[0] + (this.maxx - this.x[0]) / 2;
         },
         dragGroundLevel: function (dx, dy, x, y, evt) {
-            this.move(null, evt.offsetY);
+            svgXY(evt);
+            this.move(null, evt.svgY);
         },
     });
 

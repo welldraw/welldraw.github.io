@@ -53,3 +53,8 @@
     padding: 0px;
     margin: 2px;
 }
+.wd-color-button {
+    width: 32px;
+    height: 32px;
+    margin-right: 4px;
+}

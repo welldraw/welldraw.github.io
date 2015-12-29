@@ -6,16 +6,13 @@
         </div>
     </div>
 
-    <div ng-show="selState" id="contextControlsContainer">
-        <div ng-show="selState===selType.casingString">
+    <div ng-show="selState.show" id="contextControlsContainer">
+        <div>
             <div>Selected Element Options:</div>
-            <img type="button" class="wd-button" ng-src="/app/content/buttons/Remove.png" uib-tooltip="Delete this String" tooltip-placement="bottom" ng-click="delete()"></img>
-            <img type="button" class="wd-button" ng-src="/app/content/buttons/add_packer_50x50.png" uib-tooltip="Add Packer to String" tooltip-placement="bottom" ng-click="addPacker()"></img>
-            <well-color-chooser></well-color-chooser>
-        </div>
-        <div ng-show="selState===selType.packer">
-            <div>Selected Element Options:</div>
-            <img type="button" class="wd-button" ng-src="/app/content/buttons/Remove.png" width="30" ng-click="delete()"></img>
+            <img ng-show="selState.delete" type="button" class="wd-button" ng-src="/app/content/buttons/Remove.png" uib-tooltip="Delete this String" tooltip-placement="bottom" ng-click="delete()"></img>
+            <img ng-show="selState.addPacker" type="button" class="wd-button" ng-src="/app/content/buttons/add_packer_50x50.png" uib-tooltip="Add Packer to String" tooltip-placement="bottom" ng-click="addPacker()"></img>
+            <img ng-show="selState.addTextBox" type="button" class="wd-button" ng-src="/app/content/buttons/textbox_50x50.png" uib-tooltip="Add TextBox" tooltip-placement="bottom" ng-click="addTextBox()"></img>
+            <well-color-chooser ng-show="selState.changeColor"></well-color-chooser>
         </div>
     </div>
 </div>
