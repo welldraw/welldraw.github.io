@@ -100,7 +100,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
     /* EXPOSED API CONTROL FUNCTIONS ********************************************************************************************************/
     this.addNewString = function () {
         var x = well.midPoint + 40;
-        var y = (paper.height - well.groundLevel) * 0.65;
+        var y = (paper.height - well.groundLevel) * 0.7;
         well.strings.forEach(function (string) {
             if (string.bottom < y) y = string.bottom;
             if (string.x.right > x) x = string.x.right;
