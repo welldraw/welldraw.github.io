@@ -56,7 +56,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
 
     /* GLOBAL EVENT HANDLERS ********************************************************************************************************/
     var handleNewString = function (evt) {
-        svgXY(evt);
+        evt = svgXY(evt);
         well.makeCasingString(evt.svgX, evt.svgY);
     };
     var handleClick = function (evt) {
@@ -206,9 +206,11 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
     };
 
     var svgXY = function (evt) {
-        evt.svgX = evt.x - paper.rect.left;
-        evt.svgY = evt.y - paper.rect.top;
-        return evt;
+        var obj = {
+            svgX: evt.x - paper.rect.left,
+            svgY: evt.y - paper.rect.top
+        };
+        return obj;
     };
 
 
@@ -383,11 +385,11 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             this.casing.changeColor(color);
         },
         dragMoveTop: function (x, y, dx, dy, evt) {
-            svgXY(evt);
+            evt = svgXY(evt);
             this.move(null, null, evt.svgY);
         },
         dragMove: function (dx, dy, x, y, evt) {
-            svgXY(evt);
+            evt = svgXY(evt);
             this.move(evt.svgX, evt.svgY);
         },
     };
@@ -634,7 +636,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
     TextBox.prototype = angular.copy(BaseElementSet.prototype);
     angular.extend(TextBox.prototype, {
         dragMove: function (dx, dy, x, y, evt) {
-            svgXY(evt);
+            evt = svgXY(evt);
             this.move(evt.svgX, evt.svgY);
         },
         move: function (x, y) {
@@ -682,7 +684,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
     OpenHole.prototype = angular.copy(BaseElementSet.prototype);
     angular.extend(OpenHole.prototype, {
         dragOHBottom: function (dx, dy, x, y, evt) {
-            svgXY(evt);
+            evt = svgXY(evt);
             this.move(null, evt.svgY, null);
         },
         getPathString: function () {
@@ -788,7 +790,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             return x;
         },
         drag: function (dx, dy, x, y, evt) {
-            svgXY(evt);
+            evt = svgXY(evt);
             this.move(evt.svgX, evt.svgY);
         },
         move: function (x, y) {
@@ -927,7 +929,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             }
         },
         dragMoveTop: function (dx, dy, x, y, evt) {
-            svgXY(evt);
+            evt = svgXY(evt);
             this.move(null, null, evt.svgY);
             if (this.parent.triangles) this.parent.triangles.move();
             if (this.parent.cement) this.parent.cement.move();
@@ -1051,11 +1053,11 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             return [x, y, x, y - h, x + (d * sign), y - h, x + (d * sign), y];
         },
         dragCementTop: function (dx, dy, x, y, evt) {
-            svgXY(evt);
+            evt = svgXY(evt);
             this.move(null, this.bottom - evt.svgY);
         },
         dragCement: function (dx, dy, x, y, evt) {
-            svgXY(evt);
+            evt = svgXY(evt);
             this.move(this.height / 2 + evt.svgY, null);
         },
         move: function (y, h) {
@@ -1099,7 +1101,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
     };
     Handle.prototype = {
         dragStartHandler: function (x, y, evt) {
-            svgXY(evt);
+            evt = svgXY(evt);
             well.drag = {
                 element: evt.srcElement,
                 happened: true,
@@ -1190,7 +1192,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             return this.x[0] + (this.maxx - this.x[0]) / 2;
         },
         dragGroundLevel: function (dx, dy, x, y, evt) {
-            svgXY(evt);
+            evt = svgXY(evt);
             this.move(null, evt.svgY);
         },
     });
