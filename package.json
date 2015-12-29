@@ -18,8 +18,8 @@
         "shelljs": "^0.2.6"
     },
     "scripts": {
-        "oldpostinstall": "bower install",
-        "oldprestart": "npm install",
+        "postinstall": "bower install",
+        "prestart": "npm install",
         "oldstart": "http-server -a localhost -p 8000 -c-1",
         "start": "webpack-dev-server --progress --colors --inline",
         "pretest": "npm install",
