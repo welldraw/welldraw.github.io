@@ -208,8 +208,10 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
     var svgXY = function (evt) {
         evt.svgX = evt.x - paper.rect.left;
         evt.svgY = evt.y - paper.rect.top;
-
+        return evt;
     };
+
+
 
 
     /* CLASSES ****************************************************************************************************************/
