@@ -17,6 +17,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         openHole: 3,
         groundLevel: 4,
         cement: 5,
+        textBox: 6
     };
     this.selectionTypes = selectionTypes;
 
@@ -100,12 +101,12 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
     /* EXPOSED API CONTROL FUNCTIONS ********************************************************************************************************/
     this.addNewString = function () {
         var x = well.midPoint + 40;
-        var y = (paper.height - well.groundLevel) * 0.7;
+        var y = (paper.height - well.groundLevel) * 0.7 + well.groundLevel;
         well.strings.forEach(function (string) {
             if (string.bottom < y) y = string.bottom;
             if (string.x.right > x) x = string.x.right;
         });
-        well.makeCasingString(x + appConst.cementWidth + 6, Math.max(y - well.height * 0.15, well.groundLevel + 100));
+        well.makeCasingString(x + appConst.cementWidth + 6, Math.max(y - ((paper.height - well.groundLevel) * 0.15), well.groundLevel + 100));
     };
     this.addTubing = function () {
         well.addTubingString();
@@ -619,15 +620,22 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         this.top = top;
         this.selectElement = this;
         this.strokeColor = 'black';
-
-        this.elements[0] = paper.text(this.left, this.top, text).attr({
+        this.attrs = {
+            stroke: this.strokeColor,
             strokeWidth: 0.005
-        }); //.wrap(100);
+        };
+        this.width = 150;
+
+        this.text = text;
+        this.textElems = [];
+
+        this.buildWrappedText(this.text, this.width);
 
         this.visible = true;
 
         this.initHandles();
-        this.elements[0].handles[0] = new Handle(this.left - 10, this.top, angular.bind(this, this.dragMove));
+        this.elements[0].handles[0] = new Handle(this.left - 10, this.top + this.halfH, angular.bind(this, this.dragMove));
+        this.elements[0].handles[1] = new Handle(this.left + this.width + 10, this.top + this.halfH, angular.bind(this, this.dragResizeWidth));
 
         this.registerSelectClickable();
         this.postCreate();
@@ -637,15 +645,86 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
     angular.extend(TextBox.prototype, {
         dragMove: function (dx, dy, x, y, evt) {
             evt = svgXY(evt);
-            this.move(evt.svgX, evt.svgY);
+
+            this.move(evt.svgX + 10, evt.svgY - this.halfH);
         },
-        move: function (x, y) {
-            console.log(this.elements[0].node.getComputedTextLength());
-            this.elements[0].attr({
-                x: x + 10,
-                y: y,
-            });
-            this.elements[0].handles[0].move(x, y);
+        dragResizeWidth: function (dx, dy, x, y, evt) {
+            evt = svgXY(evt);
+            //            this.move(evt.svgX, evt.svgY);
+            var oldX = this.elements[0].handles[1].e.attr('cx');
+            dx = evt.svgX - oldX;
+            this.width += dx;
+            this.buildWrappedText(this.text, this.width);
+            this.elements[0].handles[0].move(this.left - 10, this.top + this.halfH);
+            this.elements[0].handles[1].move(this.left + this.width + 10, this.top + this.halfH);
+        },
+        move: function (left, top) {
+            var i;
+            if (csLib.isExistPositive(left)) this.left = left;
+            if (csLib.isExistPositive(top)) this.top = top;
+            for (i = 0; i < this.elements.length; i++) {
+                this.elements[i].attr({
+                    x: this.left,
+                    y: this.top + (this.lineHeight * (i + 1)),
+                });
+            }
+            this.elements[0].handles[0].move(this.left - 10, this.top + this.halfH);
+            this.elements[0].handles[1].move(this.left + this.width + 10, this.top + this.halfH);
+        },
+        buildWrappedText: function (text, len) {
+            var wordArr = text.split(/(\s|-)/);
+            var wordIndex,
+                lineIndex = 0,
+                lines = [];
+            var testElem = paper.text(0, 0, "");
+            for (wordIndex = 0; wordIndex < wordArr.length; wordIndex++) {
+                if (!csLib.isExist(lines[lineIndex])) {
+                    if (wordArr[wordIndex].search(/\s|-/) >= 0) {
+                        if (lineIndex > 0) lines[lineIndex - 1] += wordArr[wordIndex];
+                    } else {
+                        lines[lineIndex] = wordArr[wordIndex];
+                    }
+                } else {
+                    testElem.node.innerHTML = lines[lineIndex] + wordArr[wordIndex];
+                    if (testElem.node.getComputedTextLength() > len) {
+                        lineIndex++;
+                        wordIndex--;
+                    } else {
+                        lines[lineIndex] += wordArr[wordIndex];
+                    }
+
+                }
+            }
+            this.lineHeight = testElem.node.getBBox().height;
+            testElem.remove();
+            //var g = [];
+            for (lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+                if (!csLib.isExist(this.elements[lineIndex])) {
+                    this.elements[lineIndex] = paper.text(this.left, this.top + this.lineHeight * (lineIndex + 1), lines[lineIndex]).attr(this.attrs);
+                    if (lineIndex > 0) this.elements[lineIndex].handles = [];
+                } else {
+                    this.elements[lineIndex].node.innerHTML = lines[lineIndex];
+                    if (this.elements[lineIndex].hasOwnProperty('hasBeenRemoved')) {
+                        paper.append(this.elements[lineIndex]);
+                        delete this.elements[lineIndex].hasBeenRemoved;
+                    }
+                }
+            }
+            this.height = lineIndex * this.lineHeight;
+            this.halfH = this.height / 2;
+
+            //continue for any further elements using lineIndex to remove text
+            for (; lineIndex < this.elements.length; lineIndex++) {
+                if (csLib.isExist(this.elements[lineIndex])) {
+                    //                    this.elements[lineIndex].node.innerHTML = "";
+                    this.elements[lineIndex].remove();
+                    this.elements[lineIndex].hasBeenRemoved = true;
+                    //this.elements[lineIndex] = [];
+                }
+            }
+
+            this.registerSelectClickable();
+            //            this.move();
         }
     });
 
