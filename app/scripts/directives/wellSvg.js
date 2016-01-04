@@ -1,4 +1,6 @@
 var angular = require('angular');
+//var saveAs = require('/app/components/FileSaver.js/FileSaver.js').saveAs;
+var saveAs = require('../../components/FileSaver.js/FileSaver.js').saveAs;
 
 var app = require("../app.js");
 
@@ -14,6 +16,8 @@ module.exports = app.directive('wellSvg', ['$compile', '$timeout', 'WellPaper', 
 
             var selectionTypes = WellPaper.selectionTypes;
             scope.selState = setVisibility(selectionTypes.none);
+            scope.textBoxInfo = {};
+            scope.tbStyle = {};
 
             var s = WellPaper.createSurface(800, 800);
 
@@ -35,6 +39,8 @@ module.exports = app.directive('wellSvg', ['$compile', '$timeout', 'WellPaper', 
             scope.addPacker = WellPaper.addPacker;
             scope.addTubing = WellPaper.addTubing;
             scope.addTextBox = WellPaper.addTextBox;
+            scope.save = scope.saveDownload; //WellPaper.saveWell;
+            scope.open = WellPaper.openWell;
 
             WellPaper.selectionMade.then(null, null, function (obj) {
                 scope.selState = setVisibility(obj.selectionType);
@@ -49,6 +55,15 @@ module.exports = app.directive('wellSvg', ['$compile', '$timeout', 'WellPaper', 
                         top: '5px'
                     });
                 }
+                scope.textBoxInfo = obj.textBoxInfo;
+            });
+
+            scope.$watch('textBoxInfo.width', function (newValue) {
+                if (newValue) {
+                    scope.tbStyle = {
+                        width: newValue + 'px'
+                    };
+                }
             });
 
             function setVisibility(selection) {
@@ -57,15 +72,25 @@ module.exports = app.directive('wellSvg', ['$compile', '$timeout', 'WellPaper', 
                     delete: true,
                     addPacker: false,
                     changeColor: true,
-                    addTextBox: false
+                    addTextBox: false,
+                    editText: false
                 };
                 if (selection === selectionTypes.none) obj.show = false;
+                if (selection === selectionTypes.textBox) obj.editText = true;
                 if (selection === selectionTypes.casingString || selection === selectionTypes.tubingString) {
                     obj.addPacker = true;
                     obj.addTextBox = true;
                 }
                 return obj;
             }
+
+            scope.saveDownload = function () {
+                var saveObj = WellPaper.saveWell();
+                var blob = new Blob([JSON.stringify(saveObj)], {
+                    type: "text/plain;charset=utf-8"
+                });
+                //temp commentout for testing saveAs(blob, "wellData.json");
+            };
         }
     };
 }]);

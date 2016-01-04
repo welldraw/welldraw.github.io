@@ -2,6 +2,8 @@
     <div id="controlsContainer">
         <div><img type="button" class="wd-button" ng-src="/app/content/buttons/add_casing_50x50.png" uib-tooltip="Add Casing" width="30" ng-click="add()"></img>
             <img type="button" class="wd-button" ng-src="/app/content/buttons/add_tubing_50x50.png" uib-tooltip="Add Tubing" width="30" ng-click="addTubing()"></img>
+            <img type="button" class="wd-button" ng-src="/app/content/buttons/save_50x50.png" uib-tooltip="Save to File" width="30" ng-click="saveDownload()"></img>
+            <img type="button" class="wd-button" ng-src="/app/content/buttons/open_50x50.png" uib-tooltip="Open Saved File" width="30" ng-click="open()"></img>
 
         </div>
     </div>
@@ -13,6 +15,9 @@
             <img ng-show="selState.addPacker" type="button" class="wd-button" ng-src="/app/content/buttons/add_packer_50x50.png" uib-tooltip="Add Packer to String" tooltip-placement="bottom" ng-click="addPacker()"></img>
             <img ng-show="selState.addTextBox" type="button" class="wd-button" ng-src="/app/content/buttons/textbox_50x50.png" uib-tooltip="Add TextBox" tooltip-placement="bottom" ng-click="addTextBox()"></img>
             <well-color-chooser ng-show="selState.changeColor"></well-color-chooser>
+            <div ng-show="selState.editText">
+                <textarea ng-style="tbStyle" ng-model="textBoxInfo.text" ng-change="textBoxInfo.callback(textBoxInfo.text)"></textarea>
+            </div>
         </div>
     </div>
 </div>
