@@ -346,15 +346,14 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             console.log(saveObj);
         },
         restoreEach: function (saveObj) {
+            console.log(this);
             Object.keys(saveObj).forEach(angular.bind(this, function (key) {
                 var type = typeof saveObj[key];
 
                 if (type !== 'object') {
-                    //                    this[key] = saveObj[key];
+                    this[key] = saveObj[key];
                 } else {
                     if (saveObj[key]) {
-                        console.log(key);
-                        console.log(saveObj[key]);
                         if (key === 'x') {
                             this[key] = new XSet(saveObj.x.midPoint, saveObj.x.right);
                         } else if (key === 'openHole') {
@@ -371,6 +370,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
                                 this[key].push(new CasingString(this, elem.x.right, elem.bottom));
                                 Well.prototype.restoreEach.call(this[key][index], elem);
                                 this[key][index].move();
+                                console.log(this[key][index].hanger);
                             }));
                         } else if (key === 'tubingStrings') {
                             this[key] = [];
@@ -380,8 +380,16 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
                             }));
                         } else if (key === 'packers') {
                             this[key] = [];
+                            console.log(saveObj[key]);
                             saveObj[key].forEach(angular.bind(this, function (elem, index) {
-                                this[key].push(new Packer(this, elem.bottom, elem.height, elem.width));
+                                if (elem.width > 0) {
+                                    this[key].push(new Packer(this, elem.bottom, elem.height, elem.width));
+                                } else {
+                                    //                                    this.hanger = new Hanger(this);
+                                    this.hanger.width = elem.width;
+                                    this.hanger.move();
+                                    this[key].push(this.hanger);
+                                }
                                 Well.prototype.restoreEach.call(this[key][index], elem);
                             }));
                         } else if (key === 'casing') {
@@ -400,6 +408,8 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
                                 Well.prototype.restoreEach.call(this[key][index], elem);
                             }));
                         }
+                        if (this[key] && typeof this[key].move === 'function') this[key].move();
+                        if (this[key] && typeof this[key].recolor === 'function') this[key].recolor();
                     }
                 }
             }));
@@ -407,7 +417,9 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
     };
 
     var XSet = function (midPoint, x) {
-        this.makeACopy = true;
+        this.config = {
+            makeACopy: true
+        };
         this.midPoint = midPoint;
         if (csLib.isExistPositive(x)) {
             this.setBoth(x);
@@ -473,6 +485,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             this.recolor(this.strokeColor);
         },
         recolor: function (color) {
+            if (!csLib.isExist(color)) color = this.strokeColor;
             this.elements.forEach(function (element) {
                 element.attr({
                     stroke: color
@@ -548,14 +561,16 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
                 var type = typeof this[key];
 
                 if (type !== 'object') {
+                    if (key === 'width') console.log(this[key]);
                     saveObj[key] = this[key];
                 } else {
                     if (this[key] && (this[key].constructor === Array) && this[key][0] && (typeof this[key][0].save === 'function')) {
                         saveObj[key] = [];
+                        console.log(key);
                         this[key].forEach(function (elem) {
                             saveObj[key].push(elem.save());
                         });
-                    } else if (this[key] && this[key].makeACopy && (typeof this[key].save === 'function')) {
+                    } else if (this[key] && this[key].config && this[key].config.makeACopy && (typeof this[key].save === 'function')) {
                         if (key !== 'parent' && key !== 'well') {
                             saveObj[key] = this[key].save();
                         }
@@ -916,12 +931,13 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
      */
     var OpenHole = function (well, x, bottom, top) {
         BaseElementSet.call(this);
-        //        this.makeACopy = true;
+        this.config.selectElement = this;
+
         this.well = well;
         this.x = new XSet(this.well.midPoint, 1);
         this.bottom = bottom;
         this.top = top;
-        this.config.selectElement = this;
+
         this.strokeColor = 'brown';
 
         this.elements[0] = paper.path(this.getPathString()).attr({
@@ -1132,7 +1148,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
      */
     var Casing = function (parent) {
         BaseElementSet.call(this, parent);
-        this.makeACopy = true;
+        this.config.makeACopy = true;
 
         this.config.selectElement = this.parent; //selections should happen at the parent level
 
@@ -1200,7 +1216,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
      */
     var Triangles = function (parent) {
         BaseElementSet.call(this, parent);
-        this.makeACopy = true;
+        this.config.makeACopy = true;
 
         this.config.selectElement = this.parent; //selections should happen at the parent level
         this.elements[0] = paper.polygon(this.triPoints(this.parent.x.right, this.parent.bottom)).attr(this.triFormat());
@@ -1243,7 +1259,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
      */
     var Cements = function (parent, x, y) {
         BaseElementSet.call(this, parent);
-        this.makeACopy = true;
+        this.config.makeACopy = true;
 
         this.shoeY = this.parent.bottom;
         this.bottom = this.shoeY;
@@ -1296,6 +1312,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             };
         },
         recolor: function (color) {
+            if (!csLib.isExist(color)) color = this.strokeColor;
             this.elements.forEach(angular.bind(this, function (element) {
                 element.attr(this.cemFormat(color));
             }));
@@ -1397,7 +1414,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
 
     var GroundLevel = function (parent, x, y) {
         BaseElementSet.call(this, parent);
-        this.makeACopy = true;
+        this.config.makeACopy = true;
         this.well = parent;
         this.x = new XSet(this.well.midPoint, x);
         this.maxx = paper.width;
