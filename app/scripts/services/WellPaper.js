@@ -346,13 +346,9 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             console.log(saveObj);
         },
         restoreEach: function (saveObj) {
-            console.log(this);
             Object.keys(saveObj).forEach(angular.bind(this, function (key) {
                 var type = typeof saveObj[key];
-
-                if (type !== 'object') {
-                    this[key] = saveObj[key];
-                } else {
+                if (type === 'object') {
                     if (saveObj[key]) {
                         if (key === 'x') {
                             this[key] = new XSet(saveObj.x.midPoint, saveObj.x.right);
@@ -369,7 +365,6 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
                             saveObj[key].forEach(angular.bind(this, function (elem, index) {
                                 this[key].push(new CasingString(this, elem.x.right, elem.bottom));
                                 Well.prototype.restoreEach.call(this[key][index], elem);
-                                this[key][index].move();
                                 console.log(this[key][index].hanger);
                             }));
                         } else if (key === 'tubingStrings') {
@@ -380,27 +375,21 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
                             }));
                         } else if (key === 'packers') {
                             this[key] = [];
-                            console.log(saveObj[key]);
                             saveObj[key].forEach(angular.bind(this, function (elem, index) {
                                 if (elem.width > 0) {
                                     this[key].push(new Packer(this, elem.bottom, elem.height, elem.width));
                                 } else {
-                                    //                                    this.hanger = new Hanger(this);
                                     this.hanger.width = elem.width;
-                                    this.hanger.move();
                                     this[key].push(this.hanger);
                                 }
                                 Well.prototype.restoreEach.call(this[key][index], elem);
                             }));
                         } else if (key === 'casing') {
                             Well.prototype.restoreEach.call(this[key], saveObj[key]);
-                            this[key].recolor();
                         } else if (key === 'cement') {
                             Well.prototype.restoreEach.call(this[key], saveObj[key]);
-                            this[key].recolor();
                         } else if (key === 'triangles') {
                             Well.prototype.restoreEach.call(this[key], saveObj[key]);
-                            this[key].recolor();
                         } else if (key === 'textBoxes') {
                             this[key] = [];
                             saveObj[key].forEach(angular.bind(this, function (elem, index) {
@@ -408,11 +397,21 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
                                 Well.prototype.restoreEach.call(this[key][index], elem);
                             }));
                         }
-                        if (this[key] && typeof this[key].move === 'function') this[key].move();
-                        if (this[key] && typeof this[key].recolor === 'function') this[key].recolor();
                     }
                 }
+
             }));
+
+            Object.keys(saveObj).forEach(angular.bind(this, function (key) {
+                var type = typeof saveObj[key];
+                if (type !== 'object') {
+                    this[key] = saveObj[key];
+                }
+            }));
+
+            if (this.move) this.move();
+            if (this.recolor) this.recolor();
+
         }
     };
 
