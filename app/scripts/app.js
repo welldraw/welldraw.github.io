@@ -1,7 +1,8 @@
 var angular = require('angular');
 var uibs = require('angular-ui-bootstrap');
+var ngm = require('angular-material');
 
-var app = angular.module('WellDraw', [uibs]);
+var app = angular.module('WellDraw', [ngm]);
 
 app.value('appConst', {
     cementHeight: 100,
