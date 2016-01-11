@@ -2,41 +2,38 @@ var angular = require('angular');
 
 var app = require("../app.js");
 
-module.exports = app.directive('wellColorChooser', ['$compile', '$uibModal', 'WellPaper', function ($compile, $uibModal, WellPaper) {
+app.controller('ToastController', ['$scope', '$mdToast', 'WellPaper', function ($scope, $mdToast, WellPaper) {
+    $scope.returnColor = function (color) {
+        $mdToast.hide();
+        WellPaper.changeColorCurrentSelection(color);
+    };
+}]);
+
+module.exports = app.directive('wellColorChooser', ['$compile', '$mdToast', 'WellPaper', function ($compile, $mdToast, WellPaper) {
     'use strict';
     return {
         restrict: 'E',
-        template: '<img type="button" class="wd-button" ng-src="/app/content/buttons/pick_color_50x50.png" uib-tooltip="Change Color" tooltip-placement="bottom" ng-click="openColor()"></img>',
-//        templateUrl: '/app/scripts/directives/wellColorChooser.html',
+        template: '<img type="button" class="wd-button" ng-src="/app/content/buttons/pick_color_50x50.png" ng-click="openColor()"></img>',
+        //        templateUrl: '/app/scripts/directives/wellColorChooser.html',
         replace: true,
-        link: function (scope, element, attr) { 
-            var modalInstance;  
-            scope.openColor = function (size) {
-                modalInstance = $uibModal.open({
-                  animation: true,
-                  templateUrl: '/app/scripts/directives/wellColorChooser.html',
-//                    template: '<button type="button" class="btn btn-default" ng-click="returnColor(\'black\')">black</button>' + 
-//                    '<button type="button" class="btn btn-default" ng-click="returnColor(\'red\')">red</button>' + 
-//                    '<button type="button" class="btn btn-default" ng-click="returnColor(\'blue\')">blue</button>' + 
-//                    '<button type="button" class="btn btn-default" ng-click="returnColor(\'#aaaaaa\')">gray</button>' + 
-//                    '<button type="button" class="btn btn-default" ng-click="returnColor(\'green\')">green</button>' + 
-//                    '<button type="button" class="btn btn-default" ng-click="returnColor(\'brown\')">brown</button>',
-                  //controller: 'ModalInstanceCtrl',
-                  size: 'sm'
+        link: function (scope, element, attr) {
+            var modalInstance;
+            scope.openColor = function () {
+                //                $mdToast.showSimple("hello");
+                $mdToast.show({
+                    templateUrl: '/app/scripts/directives/wellColorChooser.html',
+                    hideDelay: 6000,
+                    controller: 'ToastController',
+                    position: "bottom right",
+                    parent: document.querySelector("#drawingContainer")
                 });
-                
-                modalInstance.result.then(function (selectedItem) {
-                  scope.selected = selectedItem;
-                }, function () {
+                //                    parent: element[0],
+                //                    hideDelay: 6000
+                //                });
+            };
 
-                });
-            };
-            
-            scope.returnColor = function(color){
-                modalInstance.close();
-                WellPaper.changeColorCurrentSelection(color);
-            };
-            
+
+
         }
     };
 }]);

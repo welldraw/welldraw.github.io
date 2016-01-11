@@ -15,8 +15,11 @@
 
     <link rel="stylesheet" href="/app/bower_components/html5-boilerplate/dist/css/normalize.css">
     <link rel="stylesheet" href="/app/bower_components/html5-boilerplate/dist/css/main.css">
+    <link href='https://fonts.googleapis.com/css?family=Pacifico' rel='stylesheet' type='text/css'>
 
-    <link rel="stylesheet" href="/app/components/bower-copies/bootstrap.css">
+    <!--    <link rel="stylesheet" href="/app/components/bower-copies/bootstrap.css">-->
+    <link rel="stylesheet" href="/node_modules/angular-material/angular-material.css">
+
     <link rel="stylesheet" href="/app/app.css">
     <script src="/app/bower_components/html5-boilerplate/dist/js/vendor/modernizr-2.8.3.min.js"></script>
     <script src="http://localhost:8080/webpack-dev-server.js"></script>
@@ -27,16 +30,25 @@
     <!--[if lt IE 7]>
       <p class="browsehappy">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
   <![endif]-->
+    <div layout="row" layout-align="center top">
+        <div layout="column" layout-align="center center">
 
-    <well-svg></well-svg>
 
+
+            <span flex style="font-family: 'Pacifico', cursive; font-size:3em;">Welldraw</span>
+
+            <md-whiteframe flex class="md-whiteframe-4dp" style="margin-bottom:2em">
+                <well-svg></well-svg>
+            </md-whiteframe>
+        </div>
+    </div>
     <!--     In production use:-->
     <!--
     <script data-require="snap.svg@*" data-semver="0.4.1" src="https://cdnjs.cloudflare.com/ajax/libs/snap.svg/0.4.1/snap.svg-min.js"></script>
 -->
 
     <script src="/app/components/snap.svg/snap.svg.js"></script>
-    <script src="/app/components/snap.svg/snap-rapineda-text.js"></script>
+    <!--    <script src="/app/components/snap.svg/snap-rapineda-text.js"></script>-->
     <script src="/bundle.js"></script>
 
 </body>

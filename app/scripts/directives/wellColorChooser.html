@@ -1,8 +1,5 @@
-<div style="margin:5px">
-    <h3>Choose a color:</h3>
-    <div>
-        <span ng-repeat="color in ['black', 'red', 'blue', '#aaaaaa', 'green', 'brown']">
+<md-toast style="background-color:'white'">
+    <span ng-repeat="color in ['black', 'red', 'blue', '#aaaaaa', 'green', 'brown']">
             <button type="button" class="wd-color-button btn btn-default" ng-click="returnColor(color)" style="background-color: {{color}}"></button>
         </span>
-    </div>
-</div>
+</md-toast>

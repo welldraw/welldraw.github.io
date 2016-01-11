@@ -18,6 +18,7 @@ module.exports = app.directive('wellSvg', ['$compile', '$timeout', 'WellPaper', 
             scope.selState = setVisibility(selectionTypes.none);
             scope.textBoxInfo = {};
             scope.tbStyle = {};
+            scope.saveControls = false;
 
             var s = WellPaper.createSurface(800, 800);
 
@@ -84,11 +85,17 @@ module.exports = app.directive('wellSvg', ['$compile', '$timeout', 'WellPaper', 
                 return obj;
             }
 
+            scope.startSave = function () {
+                scope.saveControls = true;
+                scope.focusOnSaveInput();
+            }
+
             scope.saveDownload = function () {
                 var saveObj = WellPaper.saveWell();
                 var blob = new Blob([JSON.stringify(saveObj)], {
                     type: "text/plain;charset=utf-8"
                 });
+                scope.saveControls = false;
                 //temp commentout for testing saveAs(blob, "wellData.json");
             };
         }

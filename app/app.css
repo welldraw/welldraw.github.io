@@ -29,7 +29,7 @@
     top: 0;
 }
 #drawingContainer {
-    border: 1px black solid;
+    border: 0px black solid;
     margin: 1em;
     display: inline-block;
     position: relative;
