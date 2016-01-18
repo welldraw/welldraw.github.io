@@ -86,9 +86,10 @@ module.exports = app.directive('wellSvg', ['$compile', '$timeout', 'WellPaper', 
             }
 
             scope.startSave = function () {
+                console.log("starting save");
                 scope.saveControls = true;
                 scope.focusOnSaveInput();
-            }
+            };
 
             scope.saveDownload = function () {
                 var saveObj = WellPaper.saveWell();
@@ -96,7 +97,8 @@ module.exports = app.directive('wellSvg', ['$compile', '$timeout', 'WellPaper', 
                     type: "text/plain;charset=utf-8"
                 });
                 scope.saveControls = false;
-                //temp commentout for testing saveAs(blob, "wellData.json");
+                var name = scope.saveName.length > 0 ? scope.saveName : "well drawing";
+                saveAs(blob, name + ".json");
             };
         }
     };

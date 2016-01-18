@@ -220,8 +220,8 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
 
     var svgXY = function (evt) {
         var obj = {
-            svgX: evt.x - paper.rect.left,
-            svgY: evt.y - paper.rect.top
+            svgX: evt.pageX - paper.rect.left,
+            svgY: evt.pageY - paper.rect.top
         };
         return obj;
     };
@@ -552,7 +552,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             }));
         },
         width: function () {
-            return Math.abs(x[1] - x[0]);
+            return x.right - x.left;
         },
         save: function () {
             var saveObj = {};

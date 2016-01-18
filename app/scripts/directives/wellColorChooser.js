@@ -13,7 +13,10 @@ module.exports = app.directive('wellColorChooser', ['$compile', '$mdToast', 'Wel
     'use strict';
     return {
         restrict: 'E',
-        template: '<img type="button" class="wd-button" ng-src="/app/content/buttons/pick_color_50x50.png" ng-click="openColor()"></img>',
+        template: '<span><md-button style="min-width:0px; padding:0px; margin:0px" ng-show="selState.changeColor" ng-click="openColor()">' +
+            '<img type="button" class="wd-button" ng-src="/app/content/buttons/pick_color_50x50.png"></img>' +
+            '<md-tooltip md-direction="bottom">Change Color</md-tooltip>' +
+            '</md-button></span>',
         //        templateUrl: '/app/scripts/directives/wellColorChooser.html',
         replace: true,
         link: function (scope, element, attr) {
@@ -27,9 +30,6 @@ module.exports = app.directive('wellColorChooser', ['$compile', '$mdToast', 'Wel
                     position: "bottom right",
                     parent: document.querySelector("#drawingContainer")
                 });
-                //                    parent: element[0],
-                //                    hideDelay: 6000
-                //                });
             };
 
 
