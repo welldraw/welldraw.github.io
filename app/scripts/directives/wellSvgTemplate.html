@@ -1,22 +1,22 @@
 <div id='drawingContainer' layout="column">
     <div id="controlsContainer">
         <div ng-show="!saveControls">
-            <md-button style="min-width:0px; padding:0px; margin:0px">
-                <img type="button" class="wd-button" ng-src="/app/content/buttons/add_casing_50x50.png" width="30" ng-click="add()">
+            <md-button style="min-width:0px; padding:0px; margin:0px" ng-click="add()">
+                <img type="button" class="wd-button" ng-src="/app/content/buttons/add_casing_50x50.png" width="30">
                 <md-tooltip md-direction="top">Add Casing</md-tooltip>
                 </img>
             </md-button>
-            <md-button style="min-width:0px; padding:0px; margin:0px">
-                <img type="button" class="wd-button" ng-src="/app/content/buttons/add_tubing_50x50.png" width="30" ng-click="addTubing()">
+            <md-button style="min-width:0px; padding:0px; margin:0px" ng-click="addTubing()">
+                <img type="button" class="wd-button" ng-src="/app/content/buttons/add_tubing_50x50.png" width="30">
                 <md-tooltip md-direction="top">Add Tubing</md-tooltip>
                 </img>
             </md-button>
-            <md-button style="min-width:0px; padding:0px; margin:0px">
-                <img type="button" class="wd-button" ng-src="/app/content/buttons/save_50x50.png" width="30" ng-click="startSave()"></img>
+            <md-button style="min-width:0px; padding:0px; margin:0px" ng-click="startSave()">
+                <img type="button" class="wd-button" ng-src="/app/content/buttons/save_50x50.png" width="30"></img>
                 <md-tooltip md-direction="top">Save to Browser Storage</md-tooltip>
             </md-button>
-            <md-button style="min-width:0px; padding:0px; margin:0px">
-                <img type="button" class="wd-button" ng-src="/app/content/buttons/open_50x50.png" width="30" ng-click="open()"></img>
+            <md-button style="min-width:0px; padding:0px; margin:0px" ng-click="open()">
+                <img type="button" class="wd-button" ng-src="/app/content/buttons/open_50x50.png" width="30"></img>
                 <md-tooltip md-direction="top">Load from Browser Storage</md-tooltip>
             </md-button>
 
@@ -26,7 +26,8 @@
                 <label>Save As. . .</label>
                 <input input-focus-function="focusOnSaveInput" ng-model="saveName">
             </md-input-container>
-            <md-button class="md-raised" ng-click="saveDownload()">Save</md-button>
+            <md-button class="md-raised" ng-click="saveDownload()">Save to file</md-button>
+            <md-button class="md-raised" ng-click="saveDownload()">Save to browser</md-button>
             <md-button ng-click="saveControls = false" class="md-raised md-warn">Cancel</md-button>
         </div>
     </div>
@@ -34,22 +35,24 @@
     <div ng-show="selState.show" id="contextControlsContainer" layout="column">
         <div flex>
             <div>Selected Element Options:</div>
-            <md-button style="min-width:0px; padding:0px; margin:0px">
-                <img ng-show="selState.delete" type="button" class="wd-button" ng-src="/app/content/buttons/Remove.png" ng-click="delete()"></img>
+            <md-button style="min-width:0px; padding:0px; margin:0px" ng-click="delete()">
+                <img ng-show="selState.delete" type="button" class="wd-button" ng-src="/app/content/buttons/Remove.png"></img>
                 <md-tooltip md-direction="bottom">Delete Element</md-tooltip>
             </md-button>
-            <md-button style="min-width:0px; padding:0px; margin:0px">
-                <img ng-show="selState.addPacker" type="button" class="wd-button" ng-src="/app/content/buttons/add_packer_50x50.png" ng-click="addPacker()"></img>
+            <md-button style="min-width:0px; padding:0px; margin:0px" ng-click="addPacker()">
+                <img ng-show="selState.addPacker" type="button" class="wd-button" ng-src="/app/content/buttons/add_packer_50x50.png"></img>
                 <md-tooltip md-direction="bottom">Add Packer</md-tooltip>
             </md-button>
-            <md-button style="min-width:0px; padding:0px; margin:0px">
-                <img ng-show="selState.addTextBox" type="button" class="wd-button" ng-src="/app/content/buttons/textbox_50x50.png" ng-click="addTextBox()"></img>
+            <md-button style="min-width:0px; padding:0px; margin:0px" ng-click="addTextBox()">
+                <img ng-show="selState.addTextBox" type="button" class="wd-button" ng-src="/app/content/buttons/textbox_50x50.png"></img>
                 <md-tooltip md-direction="bottom">Add Textbox</md-tooltip>
             </md-button>
-            <md-button style="min-width:0px; padding:0px; margin:0px">
-                <well-color-chooser ng-show="selState.changeColor"></well-color-chooser>
+            <!--            <md-button style="min-width:0px; padding:0px; margin:0px">-->
+            <well-color-chooser></well-color-chooser>
+            <!--
                 <md-tooltip md-direction="bottom">Change Color</md-tooltip>
             </md-button>
+-->
             <div ng-show="selState.editText">
                 <textarea ng-style="tbStyle" ng-model="textBoxInfo.text" ng-change="textBoxInfo.callback(textBoxInfo.text)"></textarea>
             </div>
