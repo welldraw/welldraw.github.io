@@ -91,13 +91,19 @@ module.exports = app.directive('wellSvg', ['$compile', '$timeout', 'WellPaper', 
                 scope.focusOnSaveInput();
             };
 
+            scope.saveToBrowser = function () {
+                WellPaper.saveWell(true);
+                scope.saveControls = false;
+            };
+
             scope.saveDownload = function () {
-                var saveObj = WellPaper.saveWell();
+                var saveObj = WellPaper.saveWell(false);
                 var blob = new Blob([JSON.stringify(saveObj)], {
                     type: "text/plain;charset=utf-8"
                 });
                 scope.saveControls = false;
-                var name = scope.saveName.length > 0 ? scope.saveName : "well drawing";
+                var name;
+                name = scope.saveName && scope.saveName.length > 0 ? scope.saveName : "well drawing";
                 saveAs(blob, name + ".json");
             };
         }

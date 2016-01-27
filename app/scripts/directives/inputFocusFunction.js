@@ -9,7 +9,7 @@ module.exports = app.directive('inputFocusFunction', ['$timeout', function ($tim
         link: function (scope, element, attr) {
             scope[attr.inputFocusFunction] = function () {
                 $timeout(function () {
-                    element.focus()
+                    element.focus();
                 });
             };
         }

@@ -132,12 +132,23 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         paper.rect = rect;
     };
 
-    this.saveWell = function () {
-        return well.saveToFile();
+    this.saveWell = function (storeOnBrowser) {
+        return well.saveToFile(storeOnBrowser);
     };
 
     this.openWell = function () {
         return well.restore();
+    };
+
+    this.loadFromFile = function (file) {
+        var saveObj;
+        var reader = new FileReader();
+        reader.onload = function () {
+            saveObj = JSON.parse(this.result);
+            well.restoreFromObj(saveObj);
+            console.log(saveObj);
+        };
+        reader.readAsText(file);
     };
 
     /* GLOBAL UTILITIES ****************************************************************************************************************/
@@ -316,12 +327,12 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             }
             this.widestString = saveE;
         },
-        saveToFile: function () {
+        saveToFile: function (storeOnBrowser) {
             var saveObj = BaseElementSet.prototype.save.call(this);
 
             console.log(JSON.stringify(saveObj));
 
-            if (typeof (Storage) !== "undefined") {
+            if (typeof (Storage) !== "undefined" && storeOnBrowser) {
                 localStorage.setItem("wdSaveObj", JSON.stringify(saveObj));
             } else {
                 console.log("no local storage support");
@@ -335,15 +346,18 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             } else {
                 console.log("no local storage support");
             }
+            this.restoreFromObj(saveObj);
+        },
+        restoreFromObj: function (saveObj) {
             if (saveObj) {
                 this.strings.concat(this.tubingStrings).forEach(function (string) {
                     string.remove();
                 });
                 this.openHole.remove();
                 this.groundLine.remove();
+                if (saveObj.hasOwnProperty("groundLine")) this.groundLine = new GroundLevel(this, saveObj.groundLine.x.right, saveObj.groundLine.y);
                 this.restoreEach(saveObj);
             }
-            console.log(saveObj);
         },
         restoreEach: function (saveObj) {
             Object.keys(saveObj).forEach(angular.bind(this, function (key) {
@@ -356,10 +370,10 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
                             if (this.openHole) this.openHole.remove();
                             this.openHole = new OpenHole(this, saveObj.openHole.x.right, saveObj.openHole.bottom, saveObj.openHole.top);
                             Well.prototype.restoreEach.call(this[key], saveObj[key]);
-                        } else if (key === 'groundLine') {
-                            if (this.groundLine) this.groundLine.remove();
-                            this.groundLine = new GroundLevel(this, saveObj.groundLine.x.right, saveObj.groundLine.y);
-                            Well.prototype.restoreEach.call(this[key], saveObj[key]);
+                            //                        } else if (key === 'groundLine') {
+                            //                            if (this.groundLine) this.groundLine.remove();
+                            //                            this.groundLine = new GroundLevel(this, saveObj.groundLine.x.right, saveObj.groundLine.y);
+                            //                            Well.prototype.restoreEach.call(this[key], saveObj[key]);
                         } else if (key === 'strings') {
                             this[key] = [];
                             saveObj[key].forEach(angular.bind(this, function (elem, index) {
@@ -409,6 +423,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
                 }
             }));
 
+            if (this.hasOwnProperty("visible") && this.visible) this.show(); //for the openHole
             if (this.move) this.move();
             if (this.recolor) this.recolor();
 
@@ -453,6 +468,9 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         },
         save: function () {
             return BaseElementSet.prototype.save.call(this);
+        },
+        recreateMe: function (saveObj) {
+            return new XSet(saveObj.midPoint, saveObj.right);
         }
     };
 
@@ -931,7 +949,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
     var OpenHole = function (well, x, bottom, top) {
         BaseElementSet.call(this);
         this.config.selectElement = this;
-
+        this.config.makeACopy = true;
         this.well = well;
         this.x = new XSet(this.well.midPoint, 1);
         this.bottom = bottom;
@@ -946,6 +964,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         this.visible = true;
 
         this.initHandles();
+        console.log(this.elements);
         this.elements[0].handles[0] = new Handle(well.midPoint, this.bottom, angular.bind(this, this.dragOHBottom));
 
         this.hide();

@@ -58,3 +58,22 @@
     height: 32px;
     margin-right: 4px;
 }
+.wd-button-wrap {
+    min-width: 0px;
+    padding: 0px;
+    margin: 0px
+}
+.dragoverAccept {
+    border: 3px solid #F9EE6C;
+    /* Firefox */
+    /*    height: -moz-calc(100% - 3px);*/
+    /* WebKit */
+    /*    height: -webkit-calc(100% - 3px);*/
+    /* Opera */
+    /*    height: -o-calc(100% - 3px);*/
+    /* Standard */
+    /*    height: 100%;*/
+}
+.dragoverReject {
+    border: 3px solid red;
+}

@@ -2,18 +2,11 @@ var angular = require('angular');
 
 var app = require("../app.js");
 
-app.controller('ToastController', ['$scope', '$mdToast', 'WellPaper', function ($scope, $mdToast, WellPaper) {
-    $scope.returnColor = function (color) {
-        $mdToast.hide();
-        WellPaper.changeColorCurrentSelection(color);
-    };
-}]);
-
-module.exports = app.directive('wellColorChooser', ['$compile', '$mdToast', 'WellPaper', function ($compile, $mdToast, WellPaper) {
+module.exports = app.directive('wellColorChooser', ['$compile', '$mdDialog', 'WellPaper', function ($compile, $mdDialog, WellPaper) {
     'use strict';
     return {
         restrict: 'E',
-        template: '<span><md-button style="min-width:0px; padding:0px; margin:0px" ng-show="selState.changeColor" ng-click="openColor()">' +
+        template: '<span><md-button class="wd-button-wrap" ng-show="selState.changeColor" ng-click="openColor()">' +
             '<img type="button" class="wd-button" ng-src="/app/content/buttons/pick_color_50x50.png"></img>' +
             '<md-tooltip md-direction="bottom">Change Color</md-tooltip>' +
             '</md-button></span>',
@@ -23,17 +16,25 @@ module.exports = app.directive('wellColorChooser', ['$compile', '$mdToast', 'Wel
             var modalInstance;
             scope.openColor = function () {
                 //                $mdToast.showSimple("hello");
-                $mdToast.show({
+                $mdDialog.show({
                     templateUrl: '/app/scripts/directives/wellColorChooser.html',
-                    hideDelay: 6000,
-                    controller: 'ToastController',
-                    position: "bottom right",
-                    parent: document.querySelector("#drawingContainer")
+                    clickOutsideToClose: true,
+                    controller: 'ColorController',
+                    //parent: '#drawingContainer'
+                    //position: "bottom right",
+                    //parent: document.querySelector("#drawingContainer")
                 });
             };
 
 
 
         }
+    };
+}]);
+
+app.controller('ColorController', ['$scope', '$mdDialog', 'WellPaper', function ($scope, $mdDialog, WellPaper) {
+    $scope.returnColor = function (color) {
+        $mdDialog.hide();
+        WellPaper.changeColorCurrentSelection(color);
     };
 }]);
