@@ -70,11 +70,11 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         }
 
         //Find the registered clickable elements
-        if (evt.srcElement.hasOwnProperty("clickInfo")) {
-            if (evt.srcElement.clickInfo.hasOwnProperty('baseElementSet')) {
-                evt.srcElement.clickInfo.baseElementSet.select();
+        if (evt.target.hasOwnProperty("clickInfo")) {
+            if (evt.target.clickInfo.hasOwnProperty('baseElementSet')) {
+                evt.target.clickInfo.baseElementSet.select();
             } else {
-                evt.srcElement.clickInfo.handler();
+                evt.target.clickInfo.handler();
             }
         }
 
@@ -84,13 +84,13 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             paper.unhighlight();
             delete paper.unhighlight;
         }
-        if (evt.srcElement.hasOwnProperty("clickInfo") && !well.drag.happened) {
-            if (evt.srcElement.clickInfo.hasOwnProperty('baseElementSet')) {
-                evt.srcElement.clickInfo.baseElementSet.highlight();
-                paper.unhighlight = angular.bind(evt.srcElement.clickInfo.baseElementSet, evt.srcElement.clickInfo.baseElementSet.unhighlight);
+        if (evt.target.hasOwnProperty("clickInfo") && !well.drag.happened) {
+            if (evt.target.clickInfo.hasOwnProperty('baseElementSet')) {
+                evt.target.clickInfo.baseElementSet.highlight();
+                paper.unhighlight = angular.bind(evt.target.clickInfo.baseElementSet, evt.target.clickInfo.baseElementSet.unhighlight);
             } else {
-                evt.srcElement.clickInfo.highlight();
-                paper.unhighlight = evt.srcElement.clickInfo.unhighlight;
+                evt.target.clickInfo.highlight();
+                paper.unhighlight = evt.target.clickInfo.unhighlight;
             }
         } else {
 
@@ -867,6 +867,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
                 text: this.text,
                 width: Math.max(this.width + 6, 50),
                 callback: angular.bind(this, function (text) {
+
                     this.text = text;
                     this.buildWrappedText(this.text, this.width);
                 })
@@ -890,7 +891,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
                         lines[lineIndex] += wordArr[wordIndex];
                         lineIndex++;
                     } else {
-                        testElem.node.innerHTML = lines[lineIndex] + wordArr[wordIndex];
+                        testElem.node.textContent = lines[lineIndex] + wordArr[wordIndex];
                         if (testElem.node.getComputedTextLength() > len) {
                             lineIndex++;
                             wordIndex--;
@@ -910,7 +911,8 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
                     this.elements[lineIndex] = paper.text(this.left, this.top + this.lineHeight * (lineIndex + 1), lines[lineIndex]).attr(this.attrs);
                     if (lineIndex > 0) this.elements[lineIndex].handles = [];
                 } else {
-                    this.elements[lineIndex].node.innerHTML = lines[lineIndex];
+                    this.elements[lineIndex].node.textContent = lines[lineIndex];
+
                     if (this.elements[lineIndex].hasOwnProperty('hasBeenRemoved')) {
                         paper.append(this.elements[lineIndex]);
                         delete this.elements[lineIndex].hasBeenRemoved;
@@ -1394,7 +1396,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         dragStartHandler: function (x, y, evt) {
             evt = svgXY(evt);
             well.drag = {
-                element: evt.srcElement,
+                element: evt.target,
                 happened: true,
                 id: evt.timeStamp
             };
@@ -1403,7 +1405,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
                 y: evt.svgY
             };
             hideSelection();
-            hideHandlesDuringDrag(evt.srcElement);
+            hideHandlesDuringDrag(evt.target);
         },
         dragEndHandler: function () {
             restoreSelection();

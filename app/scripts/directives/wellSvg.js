@@ -57,13 +57,24 @@ module.exports = app.directive('wellSvg', ['$compile', '$timeout', 'WellPaper', 
                     });
                 }
                 scope.textBoxInfo = obj.textBoxInfo;
+                if (obj.textBoxInfo) scope.tbText = obj.textBoxInfo.text;
             });
+
+            scope.tbChange = function () {
+                scope.textBoxInfo.callback(scope.tbVar);
+            };
 
             scope.$watch('textBoxInfo.width', function (newValue) {
                 if (newValue) {
                     scope.tbStyle = {
                         width: newValue + 'px'
                     };
+                }
+            });
+
+            scope.$watch('tbText', function (newValue) {
+                if (newValue) {
+                    scope.textBoxInfo.callback(newValue);
                 }
             });
 
