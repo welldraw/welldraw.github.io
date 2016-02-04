@@ -1114,11 +1114,13 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             for (i = 0; i < s.length; i++) {
                 minw = 100000;
                 for (j = 0; j < s.length; j++) {
-                    if (s[j].x.width() < minw && s[j].x.width() > widerThan && ((asBottom === 0) || (s[j].top <= asBottom))) {
-                        minw = s[j].x.width();
-                        cur = s[j];
+                    if (s[j]) {
+                        if (s[j].x.width() < minw && s[j].x.width() > widerThan && ((asBottom === 0) || (s[j].top <= asBottom))) {
+                            minw = s[j].x.width();
+                            cur = s[j];
+                        }
+                        if (s[j].top < topmost) topmost = s[j].top;
                     }
-                    if (s[j].top < topmost) topmost = s[j].top;
                 }
                 if (asBottom === 0) asBottom = cur.bottom;
                 path += " L " + cur.x.left + " " + asBottom + " L " + cur.x.left + " " + cur.top;
