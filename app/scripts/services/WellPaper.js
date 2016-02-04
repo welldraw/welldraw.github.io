@@ -17,7 +17,8 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         openHole: 3,
         groundLevel: 4,
         cement: 5,
-        textBox: 6
+        textBox: 6,
+        fluidFill: 7
     };
     this.selectionTypes = selectionTypes;
 
@@ -47,8 +48,6 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         well.width = x;
 
         well.groundLine.select();
-
-
 
         return paper;
     };
@@ -254,8 +253,10 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         this.drag = {};
         this.lowestCasing = this.groundLevel;
 
+        this.fluidFill = new FluidFill(this, 100, 700, 100);
         this.groundLine = new GroundLevel(this, this.midPoint, this.groundLevel);
         this.openHole = new OpenHole(this, 100, 700, 100);
+        this.openHole.assignFluidMove(angular.bind(this.fluidFill, this.fluidFill.move));
     };
     Well.prototype = {
         /**
@@ -268,6 +269,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         makeCasingString: function (x, y) {
             var newCasing = new CasingString(this, x, y);
             this.strings.push(newCasing);
+            this.updatedString();
             return newCasing;
         },
         addTubingString: function (x, y) {
@@ -283,6 +285,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         updatedString: function (string) {
             this.checkOHLowest(string);
             this.checkWidestString(string);
+            this.fluidFill.move();
         },
         checkOHLowest: function (string) {
             var saveE = string;
@@ -357,6 +360,8 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
                 this.groundLine.remove();
                 if (saveObj.hasOwnProperty("groundLine")) this.groundLine = new GroundLevel(this, saveObj.groundLine.x.right, saveObj.groundLine.y);
                 this.restoreEach(saveObj);
+                this.openHole.assignFluidMove(angular.bind(this.fluidFill, this.fluidFill.move));
+                this.updatedString();
             }
         },
         restoreEach: function (saveObj) {
@@ -423,7 +428,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
                 }
             }));
 
-            if (this.hasOwnProperty("visible") && this.visible) this.show(); //for the openHole
+            if (this.hasOwnProperty("visible") && this.visible && this.show) this.show(); //for the openHole
             if (this.move) this.move();
             if (this.recolor) this.recolor();
 
@@ -678,8 +683,8 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         this.triangles = new Triangles(this);
         this.casing = new Casing(this);
 
-        this.well.checkOHLowest(this);
-        this.well.checkWidestString(this);
+        //        this.well.checkOHLowest(this);
+        //        this.well.checkWidestString(this);
 
         //Show the handles on the new string
         this.select();
@@ -941,6 +946,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
 
 
 
+
     /**
      * @class OpenHole
      * @description makes a jagged open hole element at the bottom of the lowest casing
@@ -987,15 +993,28 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             var diff;
             var maxY = this.yValues.length - 1;
             var maxX = this.xValues.length - 1;
+            path = "M" + this.x.right + " " + this.top + " ";
             for (i = 0; i < 10000; i++) {
                 curLen += this.yValues[i % maxY];
                 diff = Math.max(curLen - length, 0);
                 path += "l " + this.xValues[i % maxX] + " " + Number(Number(this.yValues[i % maxY]) - Number(diff)).toString() + " ";
                 if (curLen >= length) break;
             }
-            path += "M" + this.x.left + " " + this.top + " " + path;
-            path += "h " + (this.x.right - this.x.left);
-            return "M" + this.x.right + " " + this.top + " " + path;
+
+            path += "h " + (this.x.left - this.x.right) + " ";
+
+            curLen = 0;
+            for (; i >= 0; i--) {
+                //                curLen += this.yValues[i % maxY];
+                //                diff = Math.max(curLen - length, 0);
+                path += "l " + String(-1 * this.xValues[i % maxX]) + " " + Number(-1 * (Number(this.yValues[i % maxY]) - Number(diff))).toString() + " ";
+                diff = 0;
+            }
+
+            //            path += "M" + this.x.left + " " + this.top + " " + path;
+            //            path += "h " + (this.x.right - this.x.left);
+            //            return "M" + this.x.right + " " + this.top + " " + path;
+            return path;
         },
         move: function (x, bottom, top) {
             if (x >= 0 && x !== undefined && x !== null) this.x.right = x;
@@ -1007,7 +1026,8 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             this.elements[0].attr({
                 path: this.getPathString()
             });
-            this.elements[0].handles[0].move(this.x.midPoint, this.bottom);
+            if (this.elements[0].hasOwnProperty("handles")) this.elements[0].handles[0].move(this.x.midPoint, this.bottom);
+            if (this.hasOwnProperty("moveFluid")) this.moveFluid(this.x.right, this.bottom, this.top);
         },
         enforceBounds: function () {
             if (this.bottom < this.top) {
@@ -1017,18 +1037,116 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         show: function () {
             this.visible = true;
             paper.append(this.elements[0]);
-
+            this.well.fluidFill.setVisible(true);
         },
         hide: function () {
             this.visible = false;
             this.elements[0].remove();
             this.elements[0].handles[0].hide();
+            this.well.fluidFill.setVisible(false);
         },
         isVisible: function () {
             return this.visible;
         },
+        assignFluidMove: function (fm) {
+            this.moveFluid = fm;
+        },
         xValues: [0, 2, 1, -3, 0, 0, 2, -3, 1, 3, -1, -1, 2, 0, -2, -2, 0, 3, -1, 1, 3, -3, 0, 2, -2, 0, -1, 0, -2, 0, -2, 3, 0],
         yValues: [3, 5, 7, 2, 6, 10, 4, 3, 8, 7, 2, 6, 9, 4, 4, 9, 7, 2, 6, 4, 8, 2, 4, 7, 6, 1, 2, 8, 9, 1, 4, 5, 7, 2, 1, 4, 5, 3, 8, 4, 1, 5, 2]
+    });
+
+    /**
+     * @class FluidFill
+     * @description makes a jagged open hole element at the bottom of the lowest casing
+     * @param {Number} x inner x coordinate
+     * @param {Number} bottom coordinate for the open hole section
+     * @param {Number} top top of the open hole section
+     */
+    var FluidFill = function (well, x, bottom, top) {
+        BaseElementSet.call(this);
+        this.config.selectElement = this;
+        this.well = well;
+        this.x = new XSet(this.well.midPoint, 1);
+        this.bottom = bottom;
+        this.top = top;
+
+        this.notifySelection = selectionTypes.fluidFill;
+        this.strokeColor = 'white';
+
+        this.elements[0] = paper.path(this.getPathString()).attr({
+            fill: this.strokeColor,
+            stroke: 'none'
+        });
+        this.visible = true;
+
+
+        this.setVisible(false);
+        this.registerSelectClickable();
+        this.postCreate();
+    };
+    FluidFill.prototype = angular.copy(OpenHole.prototype); //Includes base element prototype.  Copying this to get the open hole functinos.
+    angular.extend(FluidFill.prototype, {
+        recolor: function (color) {
+            if (!this.visible) return;
+            if (!csLib.isExist(color)) color = this.strokeColor;
+            this.elements.forEach(function (element) {
+                element.attr({
+                    //stroke: color,
+                    fill: color,
+                    'fill-opacity': 0.3
+                });
+            });
+        },
+        setVisible: function (vis) {
+            this.visible = vis;
+        },
+        updateFluidPath: function () {
+            var s = this.well.strings;
+            var cur, path, downPath = "",
+                i, j, widerThan, asBottom = 0;
+            var minw;
+            var topmost;
+            path = this.getPathString();
+
+            widerThan = 0;
+            topmost = 100000;
+            //console.log(s.length);
+            for (i = 0; i < s.length; i++) {
+                minw = 100000;
+                for (j = 0; j < s.length; j++) {
+                    if (s[j].x.width() < minw && s[j].x.width() > widerThan && ((asBottom === 0) || (s[j].top <= asBottom))) {
+                        minw = s[j].x.width();
+                        cur = s[j];
+                    }
+                    if (s[j].top < topmost) topmost = s[j].top;
+                }
+                if (asBottom === 0) asBottom = cur.bottom;
+                path += " L " + cur.x.left + " " + asBottom + " L " + cur.x.left + " " + cur.top;
+                downPath = " L " + cur.x.right + " " + cur.top + " L " + cur.x.right + " " + asBottom + downPath;
+                widerThan = cur.x.width();
+                asBottom = cur.top;
+                if (cur.top <= topmost) break;
+            }
+            path += downPath;
+            return path;
+        },
+        move: function (x, bottom, top) {
+            if (x >= 0 && x !== undefined && x !== null) this.x.right = x;
+            if (bottom >= 0 && bottom !== undefined && bottom !== null) this.bottom = bottom;
+            if (top >= 0 && top !== undefined && top !== null) this.top = top;
+            //if (!this.isVisible) this.show();
+            //this.enforceBounds();
+            this.x.left = mirrorPoint(this.x.right);
+            this.elements[0].attr({
+                path: this.updateFluidPath()
+            });
+        },
+        select: function () {
+            well.selectedItem = this.config.selectElement;
+            if (csLib.isExist(this.notifySelection)) {
+                notifySelection(this.notifySelection, this.well.midPoint, (this.config.selectElement.bottom) / 2);
+            }
+        }
     });
 
 
@@ -1382,13 +1500,14 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         }
     });
 
-    var Handle = function (x, y, dragHandler) {
+    var Handle = function (x, y, dragHandler, afterDragHandler) {
         this.e = paper.circle(x, y, 5).attr({
             fill: 'yellow',
             stroke: 'red',
             strokeWidth: 2,
             cursor: 'move'
         });
+        this.afterDragHandler = afterDragHandler;
         this.e.drag(dragHandler, this.dragStartHandler, this.dragEndHandler);
         handles.push(this.e);
     };
@@ -1412,6 +1531,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             restoreHandlesAfterDrag();
             well.drag.happened = false;
             well.drag.id = 0;
+            if (this.afterDragHandler) this.afterDragHandler();
         },
         reAdd: function () {
             paper.append(this.e);

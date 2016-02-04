@@ -22,9 +22,9 @@ module.exports = app.directive('wellSvg', ['$compile', '$timeout', 'WellPaper', 
 
             var s = WellPaper.createSurface(800, 800);
 
-            element.bind('resize', function () {
+            window.onresize = function () {
                 WellPaper.setCoords(element[0].getBoundingClientRect());
-            });
+            };
 
             element.prepend(s.node);
             s.node.style.border = "1px solid black";
@@ -87,6 +87,7 @@ module.exports = app.directive('wellSvg', ['$compile', '$timeout', 'WellPaper', 
                     addTextBox: false,
                     editText: false
                 };
+                if (selection === selectionTypes.fluidFill) obj.delete = false;
                 if (selection === selectionTypes.none) obj.show = false;
                 if (selection === selectionTypes.textBox) obj.editText = true;
                 if (selection === selectionTypes.casingString || selection === selectionTypes.tubingString) {
