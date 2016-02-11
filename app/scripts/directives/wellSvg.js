@@ -40,6 +40,7 @@ module.exports = app.directive('wellSvg', ['$compile', '$timeout', 'WellPaper', 
             scope.addPacker = WellPaper.addPacker;
             scope.addTubing = WellPaper.addTubing;
             scope.addTextBox = WellPaper.addTextBox;
+            scope.addDrillString = WellPaper.addDrillString;
             scope.save = scope.saveDownload; //WellPaper.saveWell;
             scope.open = WellPaper.openWell;
 

@@ -127,8 +127,12 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         if (well.selectedItem) well.selectedItem.addTextBox();
     };
 
+    this.addDrillString = function () {
+        well.addDrillString();
+    };
+
     this.setCoords = function (rect) {
-        paper.rect = rect;
+        paper.coordRect = rect;
     };
 
     this.saveWell = function (storeOnBrowser) {
@@ -230,8 +234,8 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
 
     var svgXY = function (evt) {
         var obj = {
-            svgX: evt.pageX - paper.rect.left,
-            svgY: evt.pageY - paper.rect.top
+            svgX: evt.pageX - paper.coordRect.left,
+            svgY: evt.pageY - paper.coordRect.top
         };
         return obj;
     };
@@ -276,6 +280,11 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             x = csLib.useThisOrAlternate(x, this.midPoint + 15);
             y = csLib.useThisOrAlternate(y, this.height * 0.75);
             this.tubingStrings.push(new TubingString(this, x, y));
+        },
+        addDrillString: function () {
+            if (!csLib.isExist(this.drillString)) {
+                this.drillString = new DrillString(this);
+            }
         },
         moveTops: function (oldy, deltay) {
             this.strings.concat(this.tubingStrings).forEach(function (string) {
@@ -575,7 +584,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             }));
         },
         width: function () {
-            return x.right - x.left;
+            return this.x.right - this.x.left;
         },
         save: function () {
             var saveObj = {};
@@ -666,6 +675,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         },
         save: BaseElementSet.prototype.save
     };
+
 
 
 
@@ -787,6 +797,214 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             string = null;
         }
     });
+
+
+
+
+
+
+
+
+
+    var InWellString = function (well) {
+        this.well = well;
+        //this.x = new XSet(well.midPoint, x);
+        //        this.minHeight = 20;
+        this.textBoxes = [];
+
+    };
+    InWellString.prototype = {
+        move: function (x, bottom, top) {
+            var oldBottom = this.bottom;
+            if (csLib.isExistPositive(bottom)) this.bottom = bottom;
+            var deltaBottom = this.bottom - oldBottom;
+            this.textBoxes.forEach(function (element) {
+                element.move(null, element.top + deltaBottom);
+            });
+            //            this.enforceMinHeight();
+            //            this.updateElementPos();
+            updateContextMenuPos(this.x.right, this.bottom);
+        },
+        //        enforceMinHeight: function () {
+        //            if (this.bottom - this.top < this.minHeight) this.bottom = this.top + this.minHeight;
+        //        },
+        //        addTextBox: function () {
+        //            this.textBoxes.push(new TextBox(this, this.x.right + 50, this.bottom + 10, "New Textbox"));
+        //        },
+        //        removeTextBox: function (tb) {
+        //            var i = this.textBoxes.indexOf(tb);
+        //            if (i >= 0) this.textBoxes.splice(i, 1);
+        //        },
+        //        changeColor: function (color) {
+        //            this.casing.changeColor(color);
+        //        },
+        //        dragMoveTop: function (x, y, dx, dy, evt) {
+        //            evt = svgXY(evt);
+        //            this.move(null, null, evt.svgY);
+        //        },
+        dragMove: function (dx, dy, x, y, evt) {
+            evt = svgXY(evt);
+            this.move(evt.svgX, evt.svgY);
+        },
+        save: BaseElementSet.prototype.save
+    };
+
+    var DrillString = function (well) {
+        InWellString.call(this, well);
+        this.well = well;
+        this.bottom = well.openHole.bottom - 3;
+
+        //Make the elements in order of layering
+        this.drillPipe = new PipeSection(this, well.openHole.width() / 5, this.bottom - 3);
+        this.drillCollar = new PipeSection(this, well.openHole.width() / 3, (this.bottom - this.well.groundLevel) / 4);
+        this.drillBit = new PipeSection(this, well.openHole.width() - 5, 10);
+
+        //Show the handles on the new string
+        this.select();
+    };
+    DrillString.prototype = angular.copy(InWellString.prototype);
+    angular.extend(DrillString.prototype, {
+        //        select: function () { //copy of selectString
+        //            this.casing.select();
+        //            this.well.selectedItem = this;
+        //            notifySelection(selectionTypes.casingString, this.x.right, this.bottom);
+        //        },
+        remove: function () {
+            this.casing.remove();
+            if (this.packers && this.packers.length > 0) this.packers.forEach(function (element, index, array) {
+                element.remove();
+            });
+        },
+        //        highlight: function () {
+        //            this.casing.highlight();
+        //        },
+        //        unhighlight: function () {
+        //            this.casing.unhighlight();
+        //        },
+        //        updateElementPos: function () {
+        //            this.casing.move();
+        //        },
+        select: function () {
+            this.drillPipe.select();
+            this.drillCollar.select();
+            this.drillBit.select();
+        },
+        dragMoveBottom: function (dx, dy, x, y, evt) {
+            evt = svgXY(evt);
+            this.bottom = evt.svgY;
+            if (this.bottom > paper.height - 5) this.bottom = paper.height - 5;
+            if (this.bottom < 10) this.bottom = 10;
+            if (this.bottom > this.well.openHole.bottom + 3) this.well.openHole.move(null, this.bottom + 3, null);
+            this.drillPipe.move(null, null, false);
+            this.drillCollar.move(null, null, true);
+            this.drillBit.move(null, null, true);
+        },
+        delete: function () {
+            var string = this;
+            string.remove();
+            deselectCurrent();
+            this.well.strings.forEach(function (element, index, array) {
+                if (element === string) delete array[index];
+            });
+            string = null;
+        }
+    });
+
+    /**
+     * @class PipeSection
+     * @description makes the section of pipe 
+     * @param {InWellString} parent the parent InWellString object
+     * @param {Number} x inner x coordinate
+     * @param {Number} y coordinate for bottom of the casing
+     */
+    var PipeSection = function (parent, width, height) {
+        BaseElementSet.call(this, parent);
+        this.config.makeACopy = true;
+        this.width = csLib.useThisOrAlternate(width, 40);
+        this.height = csLib.useThisOrAlternate(height, this.parent.bottom - this.well.groundLevel);
+        this.top = this.parent.bottom - this.height;
+        //this.bottom = parent.well.openHole.bottom;
+        this.strokeColor = "black";
+        this.x = new XSet(this.well.midPoint, this.well.midPoint + this.width / 2);
+        this.config.selectElement = this; //selections should happen at the this level
+
+        console.log(this);
+        this.elements[0] = paper.rect(this.x.left, this.top, this.width, this.height).attr({
+            fill: "#eee"
+        });
+
+
+        this.initHandles();
+        //handle 0 is for bottom
+        this.elements[0].handles[0] = new Handle(this.x.midPoint, this.parent.bottom, angular.bind(this.parent, this.parent.dragMoveBottom));
+        //handle 1 is for adjusting width
+        this.elements[0].handles[1] = new Handle(this.x.right, this.parent.bottom - (this.height) / 2, angular.bind(this, this.dragMoveWidth));
+        //handle 2 is for adjusting top
+        this.elements[0].handles[2] = new Handle(this.x.midPoint, this.top, angular.bind(this, this.dragMoveTop));
+
+
+        this.registerSelectClickable();
+        this.postCreate();
+    };
+    PipeSection.prototype = angular.copy(BaseElementSet.prototype);
+    angular.extend(PipeSection.prototype, {
+        /**
+         * @function move
+         * @description set the position of the casing
+         * @param {Number} x inner x coordinate.  Leave null to not change x coordinate
+         * @param {Number} bottom coordinate for bottom of the casing.  Leave null to not change
+         * @param {Number} top Top of the casing string. Leave null to not change
+         */
+        move: function (x, top, preserveHeight) {
+            if (csLib.isExist(x)) this.x.setBoth(x);
+            if (csLib.isExist(top)) this.top = top;
+            if (!preserveHeight) {
+                if (this.top < 1) this.top = 1;
+                this.height = this.parent.bottom - this.top;
+                if (this.height < 5) {
+                    this.height = 5;
+                    this.top = this.parent.bottom - this.height;
+                }
+            } else {
+                this.top = this.parent.bottom - this.height;
+            }
+
+            this.elements[0].attr({
+                x: this.x.left,
+                y: this.top,
+                width: this.x.width(),
+                height: this.height
+            });
+            //handle 0 is for bottom
+            this.elements[0].handles[0].move(this.x.midPoint, this.parent.bottom);
+            //handle 1 is for adjusting width
+            this.elements[0].handles[1].move(this.x.right, this.parent.bottom - (this.height) / 2);
+            //handle 2 is for adjusting top
+            this.elements[0].handles[2].move(this.x.midPoint, this.top);
+        },
+        enforceBounds: function () {
+            if ((this.parent.bottom - this.parent.top) < 15) this.parent.bottom = this.parent.top + 15;
+            if (this.parent.x.right - this.parent.x.left < 10) {
+                this.parent.x.right = well.midPoint + 5;
+                this.parent.x.left = well.midPoint - 5;
+            }
+        },
+        dragMoveTop: function (dx, dy, x, y, evt) {
+            evt = svgXY(evt);
+            this.move(null, evt.svgY);
+        },
+        dragMoveWidth: function (dx, dy, x, y, evt) {
+            evt = svgXY(evt);
+            this.move(evt.svgX, null);
+        }
+    });
+
+
+
+
+
+
+
 
 
     var TextBox = function (parent, left, top, text) {

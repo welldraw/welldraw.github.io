@@ -8,7 +8,7 @@ module.exports = app.directive('wellOpenFile', ['$compile', '$mdDialog', 'WellPa
         restrict: 'E',
         template: '<span><md-button well-drop class="wd-button-wrap" ng-show="selState.changeColor" ng-click="openFile()">' +
             '<img type="button" class="wd-button" ng-src="/app/content/buttons/open_50x50.png"></img>' +
-            '<md-tooltip md-direction="bottom">Load Saved Well</md-tooltip>' +
+            '<md-tooltip md-direction="top">Load Saved Well</md-tooltip>' +
             '</md-button></span>',
         replace: true,
         link: function (scope, element, attr) {
