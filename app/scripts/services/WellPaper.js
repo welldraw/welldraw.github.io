@@ -665,7 +665,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             this.packers.push(new Packer(this));
         },
         addTextBox: function () {
-            this.textBoxes.push(new TextBox(this, this.x.right + 50, this.bottom + 10, "New Textbox"));
+            this.textBoxes.push(new TextBox(this, this.x.right + 25, this.bottom - 5, "New Textbox"));
         },
         removePacker: function (packer) {
             var i = this.packers.indexOf(packer);
@@ -841,20 +841,22 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
                 this[this.compKeys[i]].changeColor(color);
             }
         },
+        select: function () {
+            var i;
+            for (i = 0; i < this.compKeys.length; i++) {
+                this[this.compKeys[i]].select();
+            }
+            if (csLib.isExist(this.notifySelection)) {
+                notifySelection(this.notifySelection, this.cMenuTop(), this.cMenuBottom());
+            }
+        },
         recolor: function (color) {
             var i;
             for (i = 0; i < this.compKeys.length; i++) {
                 this[this.compKeys[i]].recolor(color);
             }
         },
-        delete: function () {
-            deselectCurrent();
-            var i;
-            for (i = 0; i < this.compKeys.length; i++) {
-                this[this.compKeys[i]].remove();
-            }
-            this.well.drillString = null;
-        },
+
         //        dragMoveTop: function (x, y, dx, dy, evt) {
         //            evt = svgXY(evt);
         //            this.move(null, null, evt.svgY);
@@ -879,6 +881,38 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             evt = svgXY(evt);
             this.moveBottom(evt.svgY);
         },
+        delete: function () {
+            deselectCurrent();
+            var i;
+            for (i = 0; i < this.compKeys.length; i++) {
+                this[this.compKeys[i]].remove();
+            }
+            this.well[this.parentKey] = null;
+        },
+        moveBottom: function (y, movingOH) {
+            if (csLib.isExist(y)) this.bottom = y;
+            if (this.bottom > paper.height - 5) this.bottom = paper.height - 5;
+            if (this.bottom < 10) this.bottom = 10;
+            if (this.bottom > this.well.openHole.bottom - 3) {
+                if (movingOH) {
+                    this.bottom = this.well.openHole.bottom - 3;
+                } else {
+                    this.well.openHole.move(null, this.bottom + 3, null);
+                }
+            }
+
+            var i;
+            for (i = 0; i < this.compKeys.length; i++) {
+                this[this.compKeys[i]].move(null, null, this.compPreserveH[i]);
+            }
+            updateContextMenuPos(this.cMenuTop(), this.cMenuBottom());
+        },
+        cMenuBottom: function () {
+            return this.bottom - 30;
+        },
+        cMenuTop: function () {
+            return this[this.xKey].x.right + 10;
+        },
         save: BaseElementSet.prototype.save
     };
 
@@ -892,42 +926,23 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         this.drillCollar = new PipeSection(this, well.openHole.width() / 3, (this.bottom - this.well.groundLevel) / 4);
         this.drillBit = new PipeSection(this, well.openHole.width() - 5, 10, 10);
 
-
+        //configure the object to work with the InWellString methods
         this.compKeys = ['drillPipe', 'drillCollar', 'drillBit'];
+        this.compPreserveH = [false, true, true];
+        this.xKey = 'drillBit';
+        this.parentKey = 'drillString';
+
         //Show the handles on the new string
         this.select();
     };
     DrillString.prototype = angular.copy(InWellString.prototype);
-    angular.extend(DrillString.prototype, {
-        select: function () {
-            this.drillPipe.select();
-            this.drillCollar.select();
-            this.drillBit.select();
-            if (csLib.isExist(this.notifySelection)) {
-                notifySelection(this.notifySelection, this.drillBit.x.right + 10, this.bottom - 50);
-            }
-        },
-        dragMoveBottom: function (dx, dy, x, y, evt) {
-            evt = svgXY(evt);
-            this.moveBottom(evt.svgY);
-        },
-        moveBottom: function (y, movingOH) {
-            if (csLib.isExist(y)) this.bottom = y;
-            if (this.bottom > paper.height - 5) this.bottom = paper.height - 5;
-            if (this.bottom < 10) this.bottom = 10;
-            if (this.bottom > this.well.openHole.bottom - 3) {
-                if (movingOH) {
-                    this.bottom = this.well.openHole.bottom - 3;
-                } else {
-                    this.well.openHole.move(null, this.bottom + 3, null);
-                }
-            }
-            this.drillPipe.move(null, null, false);
-            this.drillCollar.move(null, null, true);
-            this.drillBit.move(null, null, true);
-        }
-    });
+    angular.extend(DrillString.prototype, {});
 
+    /**
+     * @class CasingRunningString
+     * @description A casing string that is shown being run inside the well, rather than an installed and cemented string.
+     * @param {object<Well>} well the parent well for the string
+     */
     var CasingRunningString = function (well) {
         InWellString.call(this, well);
 
@@ -938,40 +953,17 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         this.casing = new PipeSection(this, well.openHole.width() * 3 / 5, this.bottom - 3, 15);
         this.shoe = new PipeSection(this, well.openHole.width() * 3 / 5 + 8, 30, 15);
 
+        //configure the object to work with the InWellString methods
+        this.compKeys = ['casing', 'shoe']; //names of the PipeSection components this class is responsible for
+        this.compPreserveH = [false, true]; //in the same order as compKeys, tells whether to preserve height on a move bottom
+        this.xKey = 'shoe'; //the component to use to set the x position of the context menu
+        this.parentKey = 'casingRunningString';
 
-        this.compKeys = ['casing', 'shoe'];
         //Show the handles on the new string
         this.select();
     };
     CasingRunningString.prototype = angular.copy(InWellString.prototype);
-    angular.extend(CasingRunningString.prototype, {
-        select: function () {
-            this.casing.select();
-            this.shoe.select();
-            if (csLib.isExist(this.notifySelection)) {
-                notifySelection(this.notifySelection, this.shoe.x.right + 10, this.bottom - 50);
-            }
-        },
-        dragMoveBottom: function (dx, dy, x, y, evt) {
-            evt = svgXY(evt);
-            this.moveBottom(evt.svgY);
-        },
-        moveBottom: function (y, movingOH) {
-            if (csLib.isExist(y)) this.bottom = y;
-            if (this.bottom > paper.height - 5) this.bottom = paper.height - 5;
-            if (this.bottom < 10) this.bottom = 10;
-            if (this.bottom > this.well.openHole.bottom - 3) {
-                if (movingOH) {
-                    this.bottom = this.well.openHole.bottom - 3;
-                } else {
-                    this.well.openHole.move(null, this.bottom + 3, null);
-                }
-            }
-            this.casing.move(null, null, false);
-            this.shoe.move(null, null, true);
-
-        }
-    });
+    angular.extend(CasingRunningString.prototype, {});
 
     /**
      * @class PipeSection
