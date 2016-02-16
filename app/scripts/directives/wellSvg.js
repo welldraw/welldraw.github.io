@@ -41,6 +41,7 @@ module.exports = app.directive('wellSvg', ['$compile', '$timeout', 'WellPaper', 
             scope.addTubing = WellPaper.addTubing;
             scope.addTextBox = WellPaper.addTextBox;
             scope.addDrillString = WellPaper.addDrillString;
+            scope.addCasingRunningString = WellPaper.addCasingRunningString;
             scope.save = scope.saveDownload; //WellPaper.saveWell;
             scope.open = WellPaper.openWell;
 
@@ -48,8 +49,8 @@ module.exports = app.directive('wellSvg', ['$compile', '$timeout', 'WellPaper', 
                 scope.selState = setVisibility(obj.selectionType);
                 if (obj.x && obj.y) {
                     contextControls.css({
-                        left: String(obj.x - 20) + 'px',
-                        top: String(obj.y + 10) + 'px'
+                        left: String(obj.x) + 'px',
+                        top: String(obj.y) + 'px'
                     });
                 } else {
                     contextControls.css({

@@ -18,7 +18,9 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         groundLevel: 4,
         cement: 5,
         textBox: 6,
-        fluidFill: 7
+        fluidFill: 7,
+        drillString: 8,
+        casingRunningString: 9
     };
     this.selectionTypes = selectionTypes;
 
@@ -129,6 +131,10 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
 
     this.addDrillString = function () {
         well.addDrillString();
+    };
+
+    this.addCasingRunningString = function () {
+        well.addCasingRunningString();
     };
 
     this.setCoords = function (rect) {
@@ -282,8 +288,13 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             this.tubingStrings.push(new TubingString(this, x, y));
         },
         addDrillString: function () {
-            if (!csLib.isExist(this.drillString)) {
+            if (!csLib.isExist(this.drillString) && this.openHole.visible) {
                 this.drillString = new DrillString(this);
+            }
+        },
+        addCasingRunningString: function () {
+            if (!csLib.isExist(this.casingRunningString) && this.openHole.visible) {
+                this.casingRunningString = new CasingRunningString(this);
             }
         },
         moveTops: function (oldy, deltay) {
@@ -384,10 +395,14 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
                             if (this.openHole) this.openHole.remove();
                             this.openHole = new OpenHole(this, saveObj.openHole.x.right, saveObj.openHole.bottom, saveObj.openHole.top);
                             Well.prototype.restoreEach.call(this[key], saveObj[key]);
-                            //                        } else if (key === 'groundLine') {
-                            //                            if (this.groundLine) this.groundLine.remove();
-                            //                            this.groundLine = new GroundLevel(this, saveObj.groundLine.x.right, saveObj.groundLine.y);
-                            //                            Well.prototype.restoreEach.call(this[key], saveObj[key]);
+                        } else if (key === 'drillString') {
+                            if (this.drillString) this.drillString.delete();
+                            this.drillString = new DrillString(this);
+                            Well.prototype.restoreEach.call(this[key], saveObj[key]);
+                        } else if (key === 'casingRunningString') {
+                            if (this.casingRunningString) this.casingRunningString.delete();
+                            this.casingRunningString = new CasingRunningString(this);
+                            Well.prototype.restoreEach.call(this[key], saveObj[key]);
                         } else if (key === 'strings') {
                             this[key] = [];
                             saveObj[key].forEach(angular.bind(this, function (elem, index) {
@@ -412,11 +427,9 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
                                 }
                                 Well.prototype.restoreEach.call(this[key][index], elem);
                             }));
-                        } else if (key === 'casing') {
+                        } else if (key === 'casing' || key === 'cement' || key === 'triangles' || key === 'fluidFill') {
                             Well.prototype.restoreEach.call(this[key], saveObj[key]);
-                        } else if (key === 'cement') {
-                            Well.prototype.restoreEach.call(this[key], saveObj[key]);
-                        } else if (key === 'triangles') {
+                        } else if (key === 'drillBit' || key === 'drillCollar' || key === 'drillPipe' || key === 'casing' || key === 'shoe') {
                             Well.prototype.restoreEach.call(this[key], saveObj[key]);
                         } else if (key === 'textBoxes') {
                             this[key] = [];
@@ -531,7 +544,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             });
             well.selectedItem = this.config.selectElement;
             if (csLib.isExist(this.notifySelection)) {
-                notifySelection(this.notifySelection, this.config.selectElement.x.right, this.config.selectElement.bottom + 5);
+                notifySelection(this.notifySelection, this.config.selectElement.x.right + 10, this.config.selectElement.bottom + 10);
             }
         },
         postCreate: function () {
@@ -705,7 +718,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             this.casing.select();
             //this.cement.select();
             this.well.selectedItem = this;
-            notifySelection(selectionTypes.casingString, this.x.right, this.bottom);
+            notifySelection(selectionTypes.casingString, this.x.right + 10, this.bottom + 10);
         },
         remove: function () {
             this.casing.remove();
@@ -770,7 +783,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         select: function () { //copy of selectString
             this.casing.select();
             this.well.selectedItem = this;
-            notifySelection(selectionTypes.casingString, this.x.right, this.bottom);
+            notifySelection(selectionTypes.casingString, this.x.right + 10, this.bottom + 10);
         },
         remove: function () {
             this.casing.remove();
@@ -808,26 +821,13 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
 
     var InWellString = function (well) {
         this.well = well;
-        //this.x = new XSet(well.midPoint, x);
-        //        this.minHeight = 20;
+        this.config = {
+            makeACopy: true
+        };
         this.textBoxes = [];
 
     };
     InWellString.prototype = {
-        move: function (x, bottom, top) {
-            var oldBottom = this.bottom;
-            if (csLib.isExistPositive(bottom)) this.bottom = bottom;
-            var deltaBottom = this.bottom - oldBottom;
-            this.textBoxes.forEach(function (element) {
-                element.move(null, element.top + deltaBottom);
-            });
-            //            this.enforceMinHeight();
-            //            this.updateElementPos();
-            updateContextMenuPos(this.x.right, this.bottom);
-        },
-        //        enforceMinHeight: function () {
-        //            if (this.bottom - this.top < this.minHeight) this.bottom = this.top + this.minHeight;
-        //        },
         //        addTextBox: function () {
         //            this.textBoxes.push(new TextBox(this, this.x.right + 50, this.bottom + 10, "New Textbox"));
         //        },
@@ -835,9 +835,26 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
         //            var i = this.textBoxes.indexOf(tb);
         //            if (i >= 0) this.textBoxes.splice(i, 1);
         //        },
-        //        changeColor: function (color) {
-        //            this.casing.changeColor(color);
-        //        },
+        changeColor: function (color) {
+            var i;
+            for (i = 0; i < this.compKeys.length; i++) {
+                this[this.compKeys[i]].changeColor(color);
+            }
+        },
+        recolor: function (color) {
+            var i;
+            for (i = 0; i < this.compKeys.length; i++) {
+                this[this.compKeys[i]].recolor(color);
+            }
+        },
+        delete: function () {
+            deselectCurrent();
+            var i;
+            for (i = 0; i < this.compKeys.length; i++) {
+                this[this.compKeys[i]].remove();
+            }
+            this.well.drillString = null;
+        },
         //        dragMoveTop: function (x, y, dx, dy, evt) {
         //            evt = svgXY(evt);
         //            this.move(null, null, evt.svgY);
@@ -846,67 +863,113 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             evt = svgXY(evt);
             this.move(evt.svgX, evt.svgY);
         },
+        highlight: function () {
+            var i;
+            for (i = 0; i < this.compKeys.length; i++) {
+                this[this.compKeys[i]].highlight();
+            }
+        },
+        unhighlight: function () {
+            var i;
+            for (i = 0; i < this.compKeys.length; i++) {
+                this[this.compKeys[i]].unhighlight();
+            }
+        },
+        dragMoveBottom: function (dx, dy, x, y, evt) {
+            evt = svgXY(evt);
+            this.moveBottom(evt.svgY);
+        },
         save: BaseElementSet.prototype.save
     };
 
     var DrillString = function (well) {
         InWellString.call(this, well);
-        this.well = well;
+        this.notifySelection = selectionTypes.drillString;
         this.bottom = well.openHole.bottom - 3;
 
         //Make the elements in order of layering
         this.drillPipe = new PipeSection(this, well.openHole.width() / 5, this.bottom - 3);
         this.drillCollar = new PipeSection(this, well.openHole.width() / 3, (this.bottom - this.well.groundLevel) / 4);
-        this.drillBit = new PipeSection(this, well.openHole.width() - 5, 10);
+        this.drillBit = new PipeSection(this, well.openHole.width() - 5, 10, 10);
 
+
+        this.compKeys = ['drillPipe', 'drillCollar', 'drillBit'];
         //Show the handles on the new string
         this.select();
     };
     DrillString.prototype = angular.copy(InWellString.prototype);
     angular.extend(DrillString.prototype, {
-        //        select: function () { //copy of selectString
-        //            this.casing.select();
-        //            this.well.selectedItem = this;
-        //            notifySelection(selectionTypes.casingString, this.x.right, this.bottom);
-        //        },
-        remove: function () {
-            this.casing.remove();
-            if (this.packers && this.packers.length > 0) this.packers.forEach(function (element, index, array) {
-                element.remove();
-            });
-        },
-        //        highlight: function () {
-        //            this.casing.highlight();
-        //        },
-        //        unhighlight: function () {
-        //            this.casing.unhighlight();
-        //        },
-        //        updateElementPos: function () {
-        //            this.casing.move();
-        //        },
         select: function () {
             this.drillPipe.select();
             this.drillCollar.select();
             this.drillBit.select();
+            if (csLib.isExist(this.notifySelection)) {
+                notifySelection(this.notifySelection, this.drillBit.x.right + 10, this.bottom - 50);
+            }
         },
         dragMoveBottom: function (dx, dy, x, y, evt) {
             evt = svgXY(evt);
-            this.bottom = evt.svgY;
+            this.moveBottom(evt.svgY);
+        },
+        moveBottom: function (y, movingOH) {
+            if (csLib.isExist(y)) this.bottom = y;
             if (this.bottom > paper.height - 5) this.bottom = paper.height - 5;
             if (this.bottom < 10) this.bottom = 10;
-            if (this.bottom > this.well.openHole.bottom + 3) this.well.openHole.move(null, this.bottom + 3, null);
+            if (this.bottom > this.well.openHole.bottom - 3) {
+                if (movingOH) {
+                    this.bottom = this.well.openHole.bottom - 3;
+                } else {
+                    this.well.openHole.move(null, this.bottom + 3, null);
+                }
+            }
             this.drillPipe.move(null, null, false);
             this.drillCollar.move(null, null, true);
             this.drillBit.move(null, null, true);
+        }
+    });
+
+    var CasingRunningString = function (well) {
+        InWellString.call(this, well);
+
+        this.notifySelection = selectionTypes.casingRunningString;
+        this.bottom = well.openHole.bottom - 3;
+
+        //Make the elements in order of layering
+        this.casing = new PipeSection(this, well.openHole.width() * 3 / 5, this.bottom - 3, 15);
+        this.shoe = new PipeSection(this, well.openHole.width() * 3 / 5 + 8, 30, 15);
+
+
+        this.compKeys = ['casing', 'shoe'];
+        //Show the handles on the new string
+        this.select();
+    };
+    CasingRunningString.prototype = angular.copy(InWellString.prototype);
+    angular.extend(CasingRunningString.prototype, {
+        select: function () {
+            this.casing.select();
+            this.shoe.select();
+            if (csLib.isExist(this.notifySelection)) {
+                notifySelection(this.notifySelection, this.shoe.x.right + 10, this.bottom - 50);
+            }
         },
-        delete: function () {
-            var string = this;
-            string.remove();
-            deselectCurrent();
-            this.well.strings.forEach(function (element, index, array) {
-                if (element === string) delete array[index];
-            });
-            string = null;
+        dragMoveBottom: function (dx, dy, x, y, evt) {
+            evt = svgXY(evt);
+            this.moveBottom(evt.svgY);
+        },
+        moveBottom: function (y, movingOH) {
+            if (csLib.isExist(y)) this.bottom = y;
+            if (this.bottom > paper.height - 5) this.bottom = paper.height - 5;
+            if (this.bottom < 10) this.bottom = 10;
+            if (this.bottom > this.well.openHole.bottom - 3) {
+                if (movingOH) {
+                    this.bottom = this.well.openHole.bottom - 3;
+                } else {
+                    this.well.openHole.move(null, this.bottom + 3, null);
+                }
+            }
+            this.casing.move(null, null, false);
+            this.shoe.move(null, null, true);
+
         }
     });
 
@@ -917,19 +980,20 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
      * @param {Number} x inner x coordinate
      * @param {Number} y coordinate for bottom of the casing
      */
-    var PipeSection = function (parent, width, height) {
+    var PipeSection = function (parent, width, height, bottomCurve) {
         BaseElementSet.call(this, parent);
         this.config.makeACopy = true;
         this.width = csLib.useThisOrAlternate(width, 40);
         this.height = csLib.useThisOrAlternate(height, this.parent.bottom - this.well.groundLevel);
+        this.bottomCurve = csLib.useThisOrAlternate(bottomCurve, 0);
         this.top = this.parent.bottom - this.height;
         //this.bottom = parent.well.openHole.bottom;
         this.strokeColor = "black";
         this.x = new XSet(this.well.midPoint, this.well.midPoint + this.width / 2);
-        this.config.selectElement = this; //selections should happen at the this level
+        this.config.selectElement = this.parent; //selections should happen at the this level
+        this.minH = 5;
 
-        console.log(this);
-        this.elements[0] = paper.rect(this.x.left, this.top, this.width, this.height).attr({
+        this.elements[0] = paper.path(this.getPath()).attr({ //paper.rect(this.x.left, this.top, this.width, this.height).attr({
             fill: "#eee"
         });
 
@@ -961,8 +1025,8 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             if (!preserveHeight) {
                 if (this.top < 1) this.top = 1;
                 this.height = this.parent.bottom - this.top;
-                if (this.height < 5) {
-                    this.height = 5;
+                if (this.height < this.minH) {
+                    this.height = this.minH;
                     this.top = this.parent.bottom - this.height;
                 }
             } else {
@@ -970,10 +1034,11 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             }
 
             this.elements[0].attr({
-                x: this.x.left,
-                y: this.top,
-                width: this.x.width(),
-                height: this.height
+                path: this.getPath()
+                    //                x: this.x.left,
+                    //                y: this.top,
+                    //                width: this.x.width(),
+                    //                height: this.height
             });
             //handle 0 is for bottom
             this.elements[0].handles[0].move(this.x.midPoint, this.parent.bottom);
@@ -981,6 +1046,23 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             this.elements[0].handles[1].move(this.x.right, this.parent.bottom - (this.height) / 2);
             //handle 2 is for adjusting top
             this.elements[0].handles[2].move(this.x.midPoint, this.top);
+        },
+        getPath: function () {
+            var r;
+            var path = "M" + (this.x.left - 2) + " " + this.top;
+            path += " L " + this.x.right + " " + this.top;
+            if (this.bottomCurve) {
+                r = this.bottomCurve;
+                path += " L " + this.x.right + " " + (this.parent.bottom - r);
+                path += " Q " + this.x.right + " " + this.parent.bottom + ", " + (this.x.right - r) + " " + this.parent.bottom;
+                path += " L " + (this.x.left + r) + " " + this.parent.bottom;
+                path += " Q " + this.x.left + " " + this.parent.bottom + ", " + (this.x.left) + " " + (this.parent.bottom - r);
+            } else {
+                path += " L " + this.x.right + " " + this.parent.bottom;
+                path += " L " + this.x.left + " " + this.parent.bottom;
+            }
+            path += " L " + this.x.left + " " + this.top;
+            return path;
         },
         enforceBounds: function () {
             if ((this.parent.bottom - this.parent.top) < 15) this.parent.bottom = this.parent.top + 15;
@@ -1082,7 +1164,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             });
             well.selectedItem = this.config.selectElement;
             if (csLib.isExist(this.notifySelection)) {
-                notifySelection(this.notifySelection, this.left, this.config.selectElement.top + this.height + 5, this.myTextBoxInfo());
+                notifySelection(this.notifySelection, this.left, this.config.selectElement.top + this.height + 20, this.myTextBoxInfo());
             }
         },
         myTextBoxInfo: function () {
@@ -1246,6 +1328,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
             });
             if (this.elements[0].hasOwnProperty("handles")) this.elements[0].handles[0].move(this.x.midPoint, this.bottom);
             if (this.hasOwnProperty("moveFluid")) this.moveFluid(this.x.right, this.bottom, this.top);
+            if (this.well.hasOwnProperty("drillString")) this.well.drillString.moveBottom(null, true);
         },
         enforceBounds: function () {
             if (this.bottom < this.top) {
@@ -1283,6 +1366,7 @@ module.exports = app.factory('WellPaper', ['$q', 'appConst', 'csLib', function (
     var FluidFill = function (well, x, bottom, top) {
         BaseElementSet.call(this);
         this.config.selectElement = this;
+        this.config.makeACopy = true;
         this.well = well;
         this.x = new XSet(this.well.midPoint, 1);
         this.bottom = bottom;
